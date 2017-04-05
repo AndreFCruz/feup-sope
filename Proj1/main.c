@@ -6,46 +6,17 @@
 #include <dirent.h>
 // #include <sys/stat.h>
 
-void searchName(char* dir, char* name, char* command[]);
-
-void sigIntHandler(int signo);
-
-void printName(char* name, char* dir);
-
-int main(int argc, char* argv[])
-{
-	signal(SIGINT, sigIntHandler);
-
-	char * dir = argv[1];
-	char * func = argv[2];
-
-	// if(strcmp(argv[2],"-name")==0)
-	// {
- // 		printf("NAME=%s\n",argv[3]);
- // 		printf("CMD=%s\n",&argv[4][0]);
-		
-	// 	searchName(argv[1], argv[3], &argv[4]);
-	// }
+typedef int bool;
+enum { false,  true };
 
 
-	exit(0);
-}
+struct args_t {
+	DIR * dir;
 
-
-void * handleDirectory(void * arg) {
-	DIR * dir = (char *) arg;
-	int status;
-
-	struct dirent * entry;
-
-	// Recursively create processes to handle sub directories
-	while ( (entry = readdir(dir)) != NULL ) {
-
-	}
-
-	// Wait for child results
-	while( (waitpid(-1, &status, 0)) != -1) {}
-}
+	void * arg_ptr;
+	bool (*pred)(void * arg_ptr, struct dirent * file);	// predicate that receives a file
+	bool (*func)(struct dirent * file);	// function to be executed on file
+};
 
 /**
  * Signal Handler for SigInt (CTRL + C)
@@ -56,78 +27,131 @@ void sigIntHandler(int signo) {
 	printf("Are you sure you want to terminate (Y/N)?\n");
 	scanf("%c", &ans);
 
-	if( ans == 'y' || ans == 'Y' )
-	{
+	if( ans == 'y' || ans == 'Y' ) {
   		exit(0);
 	}
 }
 
 
+bool handleDirectory(args_t args) {
 
-// void searchName(char* dir, char* name, char* command[]){
+	struct dirent * entry;
 
-// 	if(strcmp(command[0],"-print")==0)
-// 	{
-// 		/*
-// 		*	Mostra os ficheiros encontrados
-// 		*/
-// 		printName(name, dir);
+	// Recursively create processes to handle sub directories
+	while ( (entry = readdir(args->dir)) != NULL ) {
 
-// 		exit(0);
-// 	}
-
-// 	if(strcmp(command[0],"-delete")==0)
-// 	{
-// 		/*
-// 		*	Apaga os ficheiros encontrados
-// 		*/
-
-// 		exit(0);
-// 	}
-
-// 	if(strcmp(command[0],"-exec")){
-// 		/*
-// 		*
-// 		*/
-// 	}
-// }
-
-void printName(char* name, char* dir)
-{
-	
- 	printf("DIR=%s\n",dir);
-
-    DIR* dirp;
-    struct dirent* direntp;
- 	struct stat stat_buf;
-
-    if ((dirp = opendir(dir)) == NULL) {
-        perror(dir);
-        exit(1);}
-    
-    chdir(dir);
-
-	while ((direntp = readdir( dirp)) != NULL)
- {
-  if (lstat(direntp->d_name, &stat_buf)==-1)   // testar com stat()
-  {
-   perror("lstat ERROR");
-   exit(2);
-  }
-	if (S_ISREG(stat_buf.st_mode)){
-		  if(strcmp(direntp->d_name, name)==0){
-	  				//printf("%-25s\n", direntp->d_name);
-		  }
+		bool useful;
+		if ( useful = (* (args->pred))(args->arg_ptr, entry) ) {
+			(* args->func)(entry);
 		}
-	  else
-	  {
-	  	if (S_ISDIR(stat_buf.st_mode)){
-	  			if(strcmp(direntp->d_name,"..")>0)
-	  				{
-	  				printf("%-25s\n", direntp->d_name);
-	  				//printName(name, direntp->d_name);
-	  			}
-	  	}
-	  }
+
+		if (entry->d_type == DT_DIR) {
+			// open dir
+			// fork child with same function
+			
+			DIR * sub_dir = opendir(entry->file_name);
+			// may need to call telldir for absolute path (?)
+
+			pid_t child;
+			if ( (child = fork()) == 0 ) { // child
+				args_t sub_args = args;
+				sub_args->dir = sub_dir;
+
+				return handleDirectory(sub_args);
+			} else if (child == -1) {
+				perror("error in fork");
+				return false;
+			}
+		}
 	}
+
+	closedir(args->dir);
+
+	// Wait for child results -- Handle Exit Status ?
+	while( (waitpid(-1, &status, 0)) != -1 );
+
+	return true; // FUTURE: change
 }
+
+/** Predicates **/
+bool nameEquals(void * arg_ptr, struct dirent * file) {
+	char * name = * ((char **) arg_ptr);
+
+	return strncmp(file.d_name, name, strlen(len)) == 0 ? true : false;
+}
+
+bool typeEquals(void * arg_ptr, struct dirent * file) {
+	unsigned char type = * ((unsigned char *) arg_ptr);
+
+	return type == file.d_type;
+}
+
+bool permEquals(void * arg_ptr, struct dirent * file) {
+	// obtain permissions from dirent
+	// has absolute path ?
+
+	return false;
+}
+/** END OF Predicates **/
+
+
+/** Functions **/
+bool printEntry(struct dirent * entry) {
+	char * wd = getwd();
+	printf("%s/%s", wd, entry->d_name);
+
+	return true;
+}
+
+bool deleteEntry(struct dirent * entry) {
+	char * wd = getwd();
+
+	return remove(entry->d_name) != -1;
+}
+/** END OF Functions **/
+
+int main(int argc, char* argv[])
+{
+	if (argc < 5) {
+		printf("Invalid number of arguments\n");
+		// TODO print usage
+		exit(0);
+	}
+	signal(SIGINT, sigIntHandler);
+
+	char * dir = argv[1];
+	char * pred = argv[2];
+	char * func = argv[4];
+
+	struct args_t args;
+
+	// Set Predicate
+	if (strncmp(pred, "-name", 5) == 0) {
+		args->pred = &nameEquals;
+	} else if (strncmp(pred, "-type", 5) == 0) {
+		args->pred = &typeEquals;
+	} else if (strncmp(pred, "-perm", 5) == 0) {
+		args->pred = &permEquals;
+	}
+
+	// Set Directory
+	if ( (args->dir = opendir(dir)) == NULL ) {
+		perror("opendir failed");
+		exit(0);
+	}
+
+	// Set Function
+	if ( strncmp(func, "-print", 6) == 0 ) {
+		args->func = &printEntry;
+	} else if ( strncmp(func, "-delete", 7) == 0 ) {
+		args->func = &deleteEntry;
+	} else if ( strncmp(func, "-exec", 5) == 0 ) { // TODO handle other arguments
+		;
+	}
+
+	handleDirectory(args);
+	closedir(args->dir);
+
+	exit(0);
+}
+

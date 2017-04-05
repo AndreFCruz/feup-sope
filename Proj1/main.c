@@ -11,8 +11,16 @@
 typedef int bool;
 enum { false,  true };
 
+#define DIR_IDX		1
+#define PRED_IDX	2
+#define ARG_IDX		3
+#define FUNC_IDX 	4
+
 
 struct args_t {
+	char * home_dir;
+	char ** argv;
+
 	DIR * dir;
 
 	void * arg_ptr;
@@ -41,11 +49,18 @@ bool handleDirectory(struct args_t args) {
 
 	// Recursively create processes to handle sub directories
 	while ( (entry = readdir(args.dir)) != NULL ) {
+#if TEST
+		printf("Entry: %s\n", entry->d_name);
+#endif
 
 		bool useful;
-		if ( (useful = (* (args.pred))(args.arg_ptr, entry)) ) {
-			(* args.func)(entry);
+		if ( (useful = (args.pred)(args.arg_ptr, entry)) ) {
+			(args.func)(entry);
 		}
+
+#if TEST
+		printf("Predicate eval: %s\n", useful ? "True" : "False");
+#endif
 
 		if (entry->d_type == DT_DIR) {
 			// open dir
@@ -56,12 +71,7 @@ bool handleDirectory(struct args_t args) {
 
 			pid_t child;
 			if ( (child = fork()) == 0 ) { // child
-				struct args_t sub_args = args;
-				sub_args.dir = sub_dir;
-				if ( chdir(entry->d_name) == -1 )
-					return false;
-
-				return handleDirectory(sub_args);
+				execl(args.home_dir, *(args.argv));
 			} else if (child == -1) {
 				perror("error in fork");
 				return false;
@@ -82,11 +92,19 @@ bool handleDirectory(struct args_t args) {
 bool nameEquals(void * arg_ptr, struct dirent * file) {
 	char * name = * ((char **) arg_ptr);
 
+#if TEST
+	printf("testing name %s\n", name);
+#endif
+
 	return strncmp(file->d_name, name, strlen(name)) == 0 ? true : false;
 }
 
 bool typeEquals(void * arg_ptr, struct dirent * file) {
 	unsigned char type = * ((unsigned char *) arg_ptr);
+
+#if TEST
+	printf("testing type %c\n", type);
+#endif
 
 	return type == file->d_type;
 }
@@ -126,38 +144,45 @@ int main(int argc, char* argv[])
 	}
 	signal(SIGINT, sigIntHandler);
 
-	char * dir = argv[1];
-	char * pred = argv[2];
-	char * func = argv[4];
-
 	struct args_t args;
+	args.argv = argv;
+	if ( getwd(args.home_dir) == NULL ) {
+		perror("getwd failed in main");
+		exit(1);
+	}
+
+#if TEST
+	printf("Main pre-loading starting\n");
+#endif
 
 	// Set Predicate
-	if (strncmp(pred, "-name", 5) == 0) {
-		args.pred = &nameEquals;
-	} else if (strncmp(pred, "-type", 5) == 0) {
-		args.pred = &typeEquals;
-	} else if (strncmp(pred, "-perm", 5) == 0) {
-		args.pred = &permEquals;
+	if (strncmp(argv[PRED_IDX], "-name", 5) == 0) {
+		args.pred = nameEquals;
+		args.arg_ptr = &argv[ARG_IDX];
+	} else if (strncmp(argv[PRED_IDX], "-type", 5) == 0) {
+		args.pred = typeEquals;
+		// set arg to file type
+	} else if (strncmp(argv[PRED_IDX], "-perm", 5) == 0) {
+		args.pred = permEquals;
 	}
 
 	// Set Directory
-	if ( (args.dir = opendir(dir)) == NULL ) {
+	if ( (args.dir = opendir(argv[DIR_IDX])) == NULL ) {
 		perror("opendir failed");
 		exit(0);
 	}
 
 	// Set Function
-	if ( strncmp(func, "-print", 6) == 0 ) {
-		args.func = &printEntry;
-	} else if ( strncmp(func, "-delete", 7) == 0 ) {
-		args.func = &deleteEntry;
-	} else if ( strncmp(func, "-exec", 5) == 0 ) { // TODO handle other arguments
+	if ( strncmp(argv[FUNC_IDX], "-print", 6) == 0 ) {
+		args.func = printEntry;
+	} else if ( strncmp(argv[FUNC_IDX], "-delete", 7) == 0 ) {
+		args.func = deleteEntry;
+	} else if ( strncmp(argv[FUNC_IDX], "-exec", 5) == 0 ) { // TODO handle other arguments
 		;
 	}
 
 #if TEST
-	printf("Main pre-loading\n");
+	printf("Main pre-loading finished\n");
 #endif
 
 	handleDirectory(args);

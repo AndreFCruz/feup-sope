@@ -34,6 +34,7 @@ int main(int argc, char* argv[])
 
 void * handleDirectory(void * arg) {
 	DIR * dir = (char *) arg;
+	int status;
 
 	struct dirent * entry;
 
@@ -42,9 +43,8 @@ void * handleDirectory(void * arg) {
 
 	}
 
-
 	// Wait for child results
-
+	while( (waitpid(-1, &status, 0)) != -1) {}
 }
 
 /**

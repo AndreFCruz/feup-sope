@@ -8,6 +8,8 @@
 
 #define TEST 1
 
+#define MAX_DIR_NAME_LEN	256
+
 typedef int bool;
 enum { false,  true };
 
@@ -120,16 +122,21 @@ bool permEquals(void * arg_ptr, struct dirent * file) {
 
 /** Functions **/
 bool printEntry(struct dirent * entry) {
-	char * wd;
-	getwd(wd);
+	char * wd = malloc(MAX_DIR_NAME_LEN);
+	if (getcwd(wd, MAX_DIR_NAME_LEN) == NULL) {
+		perror("printEntry failed getwd");
+	}
+
 	printf("%s/%s", wd, entry->d_name);
 
 	return true;
 }
 
 bool deleteEntry(struct dirent * entry) {
-	char * wd;
-	getwd(wd);
+	char * wd = malloc(MAX_DIR_NAME_LEN);
+	if (getcwd(wd, MAX_DIR_NAME_LEN) == NULL) {
+		perror("deleteEntry failed getwd");
+	}
 
 	return remove(entry->d_name) != -1;
 }
@@ -146,8 +153,10 @@ int main(int argc, char* argv[])
 
 	struct args_t args;
 	args.argv = argv;
-	if ( getwd(args.home_dir) == NULL ) {
+	args.home_dir = malloc(MAX_DIR_NAME_LEN);
+	if ( getcwd(args.home_dir, MAX_DIR_NAME_LEN) == NULL ) {
 		perror("getwd failed in main");
+		printf("yoyogetwd failed\n");
 		exit(1);
 	}
 

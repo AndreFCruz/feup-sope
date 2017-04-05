@@ -4,7 +4,7 @@
 #include <signal.h>
 #include <string.h>
 #include <dirent.h>
-#include <sys/stat.h>
+// #include <sys/stat.h>
 
 void searchName(char* dir, char* name, char* command[]);
 
@@ -16,25 +16,47 @@ int main(int argc, char* argv[])
 {
 	signal(SIGINT, sigIntHandler);
 
-	if(strcmp(argv[2],"-name")==0)
-	{
- 		printf("NAME=%s\n",argv[3]);
- 		printf("CMD=%s\n",&argv[4][0]);
+	char * dir = argv[1];
+	char * func = argv[2];
+
+	// if(strcmp(argv[2],"-name")==0)
+	// {
+ // 		printf("NAME=%s\n",argv[3]);
+ // 		printf("CMD=%s\n",&argv[4][0]);
 		
-		searchName(argv[1], argv[3], &argv[4]);
-	}
+	// 	searchName(argv[1], argv[3], &argv[4]);
+	// }
 
 
 	exit(0);
 }
 
-void sigIntHandler(int signo){
+
+void * handleDirectory(void * arg) {
+	DIR * dir = (char *) arg;
+
+	struct dirent * entry;
+
+	// Recursively create processes to handle sub directories
+	while ( (entry = readdir(dir)) != NULL ) {
+
+	}
+
+
+	// Wait for child results
+
+}
+
+/**
+ * Signal Handler for SigInt (CTRL + C)
+ */
+void sigIntHandler(int signo) {
 	char ans;
 
 	printf("Are you sure you want to terminate (Y/N)?\n");
 	scanf("%c", &ans);
 
-	if(ans == 'y' || ans == 'Y')
+	if( ans == 'y' || ans == 'Y' )
 	{
   		exit(0);
 	}
@@ -42,38 +64,38 @@ void sigIntHandler(int signo){
 
 
 
-void searchName(char* dir, char* name, char* command[]){
+// void searchName(char* dir, char* name, char* command[]){
 
-	if(strcmp(command[0],"-print")==0)
-	{
-		/*
-		*	Mostra os ficheiros encontrados
-		*/
-		printName(name, dir);
+// 	if(strcmp(command[0],"-print")==0)
+// 	{
+// 		/*
+// 		*	Mostra os ficheiros encontrados
+// 		*/
+// 		printName(name, dir);
 
-		exit(0);
-	}
+// 		exit(0);
+// 	}
 
-	if(strcmp(command[0],"-delete")==0)
-	{
-		/*
-		*	Apaga os ficheiros encontrados
-		*/
+// 	if(strcmp(command[0],"-delete")==0)
+// 	{
+// 		/*
+// 		*	Apaga os ficheiros encontrados
+// 		*/
 
-		exit(0);
-	}
+// 		exit(0);
+// 	}
 
-	if(strcmp(command[0],"-exec")){
-		/*
-		*
-		*/
-	}
-}
+// 	if(strcmp(command[0],"-exec")){
+// 		/*
+// 		*
+// 		*/
+// 	}
+// }
 
 void printName(char* name, char* dir)
 {
 	
- 		printf("DIR=%s\n",dir);
+ 	printf("DIR=%s\n",dir);
 
     DIR* dirp;
     struct dirent* direntp;

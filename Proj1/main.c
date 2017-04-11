@@ -6,7 +6,7 @@
 #include <dirent.h>
 // #include <sys/stat.h>
 
-#define TEST 1
+#define TEST 0
 
 #define MAX_DIR_NAME_LEN	256
 
@@ -18,10 +18,12 @@ enum { false,  true };
 #define ARG_IDX		3
 #define FUNC_IDX 	4
 
+char * const * get_argv(int argc, char * const argv[], const char * sub_dir);
 
 struct args_t {
 	char * home_dir;
 	char ** argv;
+	int argc;
 
 	DIR * dir;
 
@@ -67,27 +69,68 @@ bool handleDirectory(struct args_t args) {
 		if (entry->d_type == DT_DIR) {
 			// open dir
 			// fork child with same function
-			
+	
 			DIR * sub_dir = opendir(entry->d_name);
+			printf("Entry name: %s\n", entry->d_name);
 			// may need to call telldir for absolute path (?)
 
 			pid_t child;
 			if ( (child = fork()) == 0 ) { // child
-				execl(args.home_dir, *(args.argv));
+				char * const * new_argv = get_argv(args.argc, args.argv, entry->d_name);
+				
+				printf("Creating child at: %s\n", new_argv[DIR_IDX]);
+
+				// if (execv(args.home_dir, new_argv) == -1) {
+				// 	perror("exec failed");
+				// 	return false;
+				// }
+
 			} else if (child == -1) {
 				perror("error in fork");
 				return false;
+			} else {
+				printf("Creating child %d\n", child);
 			}
 		}
 	}
-
-	closedir(args.dir);
 
 	int status;
 	// Wait for child results -- Handle Exit Status ?
 	while( (waitpid(-1, &status, 0)) != -1 );
 
 	return true; // FUTURE: change
+}
+
+char * const * get_argv(int argc, char * const argv[], const char * sub_dir) {
+
+    // allocate memory and copy strings
+    char** new_argv = malloc((argc+1) * sizeof(*new_argv));
+    for(int i = 0; i < argc; ++i)
+    {
+        size_t length = strlen(argv[i])+1;
+        new_argv[i] = malloc(length);
+        memcpy(new_argv[i], argv[i], length);
+    }
+    new_argv[argc] = NULL;
+
+    int arg1_len = strlen(new_argv[DIR_IDX]) + strlen(sub_dir) + 1;
+    char * arg1 = malloc(arg1_len);
+    memset(arg1, 0, arg1_len);
+    strcat(arg1, new_argv[DIR_IDX]);
+    strncat(arg1, "/", 1);
+    strcat(arg1, sub_dir);
+
+    new_argv[DIR_IDX] = arg1;
+
+    // FUTURE ?
+    // // free memory
+    // for(int i = 0; i < argc; ++i)
+    // {
+    //     free(new_argv[i]);
+    // }
+    // free(new_argv);
+
+    return new_argv;
 }
 
 /** Predicates **/
@@ -127,7 +170,7 @@ bool printEntry(struct dirent * entry) {
 		perror("printEntry failed getwd");
 	}
 
-	printf("%s/%s", wd, entry->d_name);
+	printf("%s/%s\n", wd, entry->d_name);
 
 	return true;
 }
@@ -152,13 +195,16 @@ int main(int argc, char* argv[])
 	signal(SIGINT, sigIntHandler);
 
 	struct args_t args;
-	args.argv = argv;
+	args.argv = argv;	// save argv
+	args.argc = argc;	// save argc
 	args.home_dir = malloc(MAX_DIR_NAME_LEN);
 	if ( getcwd(args.home_dir, MAX_DIR_NAME_LEN) == NULL ) {
 		perror("getwd failed in main");
 		printf("yoyogetwd failed\n");
 		exit(1);
 	}
+	strncat(args.home_dir, "/", MAX_DIR_NAME_LEN);
+	strncat(args.home_dir, argv[0], MAX_DIR_NAME_LEN);
 
 #if TEST
 	printf("Main pre-loading starting\n");
@@ -194,7 +240,16 @@ int main(int argc, char* argv[])
 	printf("Main pre-loading finished\n");
 #endif
 
+	printf("Opening dir: %s\n", argv[DIR_IDX]);
+	printf("Home dir: %s\n", args.home_dir);
+
+	// unsigned str_len = strlen(args.home_dir) + strlen(argv[0]) + 1;
+	// char * str = malloc(str_len);
+	// memset(str, 0, sizeof(str_len));
+	// strcat(str, args.home_dir);
+
 	handleDirectory(args);
+
 	closedir(args.dir);
 
 	exit(0);

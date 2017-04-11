@@ -29,7 +29,7 @@ struct args_t {
 
 	void * arg_ptr;
 	bool (*pred)(void * arg_ptr, struct dirent * file);	// predicate that receives a file
-	bool (*func)(struct dirent * file);	// function to be executed on file
+	bool (*func)(struct args_t args, struct dirent * file);	// function to be executed on file
 };
 
 /**
@@ -59,37 +59,40 @@ bool handleDirectory(struct args_t args) {
 
 		bool useful;
 		if ( (useful = (args.pred)(args.arg_ptr, entry)) ) {
-			(args.func)(entry);
+			(args.func)(args, entry);
 		}
 
 #if TEST
 		printf("Predicate eval: %s\n", useful ? "True" : "False");
 #endif
 
-		if (entry->d_type == DT_DIR) {
+		if ( entry->d_type == DT_DIR && strncmp(entry->d_name, ".", 1) != 0 && strncmp(entry->d_name, "..", 2) != 0 ) {
 			// open dir
 			// fork child with same function
 	
 			DIR * sub_dir = opendir(entry->d_name);
-			printf("Entry name: %s\n", entry->d_name);
 			// may need to call telldir for absolute path (?)
 
 			pid_t child;
 			if ( (child = fork()) == 0 ) { // child
 				char * const * new_argv = get_argv(args.argc, args.argv, entry->d_name);
-				
-				printf("Creating child at: %s\n", new_argv[DIR_IDX]);
 
-				// if (execv(args.home_dir, new_argv) == -1) {
-				// 	perror("exec failed");
-				// 	return false;
-				// }
+#if TEST
+				printf("Creating child at: %s\n", new_argv[DIR_IDX]);
+#endif
+
+				if (execv(args.home_dir, new_argv) == -1) {
+					perror("exec failed");
+					return false;
+				}
 
 			} else if (child == -1) {
 				perror("error in fork");
 				return false;
 			} else {
-				printf("Creating child %d\n", child);
+#if TEST
+				printf("Created child %d\n", child);
+#endif
 			}
 		}
 	}
@@ -164,24 +167,27 @@ bool permEquals(void * arg_ptr, struct dirent * file) {
 
 
 /** Functions **/
-bool printEntry(struct dirent * entry) {
-	char * wd = malloc(MAX_DIR_NAME_LEN);
-	if (getcwd(wd, MAX_DIR_NAME_LEN) == NULL) {
-		perror("printEntry failed getwd");
-	}
-
-	printf("%s/%s\n", wd, entry->d_name);
+bool printEntry(struct args_t args, struct dirent * entry) {
+	printf("%s/%s\n", args.argv[DIR_IDX], entry->d_name);
 
 	return true;
 }
 
-bool deleteEntry(struct dirent * entry) {
-	char * wd = malloc(MAX_DIR_NAME_LEN);
-	if (getcwd(wd, MAX_DIR_NAME_LEN) == NULL) {
-		perror("deleteEntry failed getwd");
-	}
+bool deleteEntry(struct args_t args, struct dirent * entry) {
+	char str[MAX_DIR_NAME_LEN];
+	memset(str, 0, MAX_DIR_NAME_LEN);
+	strcat(str, args.argv[DIR_IDX]);
+	strcat(str, "/");
+	strcat(str, entry->d_name);
 
-	return remove(entry->d_name) != -1;
+	printf("Deleted %s/%s\n", args.argv[DIR_IDX], entry->d_name);
+
+#if TEST == 2
+	return true;
+#else
+	int ret = remove(str);
+	return (ret != -1);
+#endif
 }
 /** END OF Functions **/
 
@@ -205,10 +211,6 @@ int main(int argc, char* argv[])
 	}
 	strncat(args.home_dir, "/", MAX_DIR_NAME_LEN);
 	strncat(args.home_dir, argv[0], MAX_DIR_NAME_LEN);
-
-#if TEST
-	printf("Main pre-loading starting\n");
-#endif
 
 	// Set Predicate
 	if (strncmp(argv[PRED_IDX], "-name", 5) == 0) {
@@ -237,11 +239,9 @@ int main(int argc, char* argv[])
 	}
 
 #if TEST
-	printf("Main pre-loading finished\n");
-#endif
-
 	printf("Opening dir: %s\n", argv[DIR_IDX]);
 	printf("Home dir: %s\n", args.home_dir);
+#endif
 
 	// unsigned str_len = strlen(args.home_dir) + strlen(argv[0]) + 1;
 	// char * str = malloc(str_len);

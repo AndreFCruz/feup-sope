@@ -4,7 +4,7 @@
 #include <signal.h>
 #include <string.h>
 #include <dirent.h>
-// #include <sys/stat.h>
+#include <sys/stat.h>
 
 #define TEST 0
 
@@ -21,45 +21,47 @@ enum { false,  true };
 char * const * get_argv(int argc, char * const argv[], const char * sub_dir);
 
 struct args_t {
-	char * home_dir;
+	char home_dir[MAX_DIR_NAME_LEN];
 	char ** argv;
 	int argc;
 
 	DIR * dir;
 
-	void * arg_ptr;
-	bool (*pred)(void * arg_ptr, struct dirent * file);	// predicate that receives a file
-	bool (*func)(struct args_t args, struct dirent * file);	// function to be executed on file
+	bool (*pred)(const struct args_t * args, const struct dirent * file);	// predicate that receives a file
+	bool (*func)(const struct args_t * args, const struct dirent * file);	// function to be executed on file
 };
 
 /**
  * Signal Handler for SigInt (CTRL + C)
  */
 void sigIntHandler(int signo) {
-	char ans;
+	(void) signo; // Silence Unused Parameter Warning
 
-	printf("Are you sure you want to terminate (Y/N)?\n");
-	scanf("%c", &ans);
+	// char ans;
 
-	if( ans == 'y' || ans == 'Y' ) {
-  		exit(0);
-	}
+	// printf("Are you sure you want to terminate (Y/N)?\n");
+	// scanf("%c", &ans);
+
+	// if( ans == 'y' || ans == 'Y' ) {
+ //  		exit(0);
+	// }
+	exit(0);
 }
 
 
-bool handleDirectory(struct args_t args) {
+bool handleDirectory(const struct args_t * args) {
 
 	struct dirent * entry;
 
 	// Recursively create processes to handle sub directories
-	while ( (entry = readdir(args.dir)) != NULL ) {
+	while ( (entry = readdir(args->dir)) != NULL ) {
 #if TEST
 		printf("Entry: %s\n", entry->d_name);
 #endif
 
 		bool useful;
-		if ( (useful = (args.pred)(args.arg_ptr, entry)) ) {
-			(args.func)(args, entry);
+		if ( (useful = (args->pred)(args, entry)) ) {
+			(args->func)(args, entry);
 		}
 
 #if TEST
@@ -75,13 +77,13 @@ bool handleDirectory(struct args_t args) {
 
 			pid_t child;
 			if ( (child = fork()) == 0 ) { // child
-				char * const * new_argv = get_argv(args.argc, args.argv, entry->d_name);
+				char * const * new_argv = get_argv(args->argc, args->argv, entry->d_name);
 
 #if TEST
 				printf("Creating child at: %s\n", new_argv[DIR_IDX]);
 #endif
 
-				if (execv(args.home_dir, new_argv) == -1) {
+				if (execv(args->home_dir, new_argv) == -1) {
 					perror("exec failed");
 					return false;
 				}
@@ -125,7 +127,10 @@ char * const * get_argv(int argc, char * const argv[], const char * sub_dir) {
 
     new_argv[DIR_IDX] = arg1;
 
-    // FUTURE ?
+
+    // FUTURE ? 
+    // TODO perguntar se se deve libertar a memória do argv do child process (child copia?)
+
     // // free memory
     // for(int i = 0; i < argc; ++i)
     // {
@@ -137,8 +142,8 @@ char * const * get_argv(int argc, char * const argv[], const char * sub_dir) {
 }
 
 /** Predicates **/
-bool nameEquals(void * arg_ptr, struct dirent * file) {
-	char * name = * ((char **) arg_ptr);
+bool nameEquals(const struct args_t * args, const struct dirent * file) {
+	char * name = args->argv[ARG_IDX];
 
 #if TEST
 	printf("testing name %s\n", name);
@@ -147,8 +152,8 @@ bool nameEquals(void * arg_ptr, struct dirent * file) {
 	return strncmp(file->d_name, name, strlen(name)) == 0 ? true : false;
 }
 
-bool typeEquals(void * arg_ptr, struct dirent * file) {
-	unsigned char type = * ((unsigned char *) arg_ptr);
+bool typeEquals(const struct args_t * args, const struct dirent * file) {
+	unsigned char type = atoi(args->argv[ARG_IDX]);
 
 #if TEST
 	printf("testing type %c\n", type);
@@ -157,7 +162,7 @@ bool typeEquals(void * arg_ptr, struct dirent * file) {
 	return type == file->d_type;
 }
 
-bool permEquals(void * arg_ptr, struct dirent * file) {
+bool permEquals(const struct args_t * args, const struct dirent * file) {
 	// obtain permissions from dirent
 	// has absolute path ?
 
@@ -167,20 +172,20 @@ bool permEquals(void * arg_ptr, struct dirent * file) {
 
 
 /** Functions **/
-bool printEntry(struct args_t args, struct dirent * entry) {
-	printf("%s/%s\n", args.argv[DIR_IDX], entry->d_name);
+bool printEntry(const struct args_t * args, const struct dirent * entry) {
+	printf("%s/%s\n", args->argv[DIR_IDX], entry->d_name);
 
 	return true;
 }
 
-bool deleteEntry(struct args_t args, struct dirent * entry) {
+bool deleteEntry(const struct args_t * args, const struct dirent * entry) {
 	char str[MAX_DIR_NAME_LEN];
 	memset(str, 0, MAX_DIR_NAME_LEN);
-	strcat(str, args.argv[DIR_IDX]);
+	strcat(str, args->argv[DIR_IDX]);
 	strcat(str, "/");
 	strcat(str, entry->d_name);
 
-	printf("Deleted %s/%s\n", args.argv[DIR_IDX], entry->d_name);
+	printf("Deleted %s/%s\n", args->argv[DIR_IDX], entry->d_name);
 
 #if TEST == 2
 	return true;
@@ -203,10 +208,8 @@ int main(int argc, char* argv[])
 	struct args_t args;
 	args.argv = argv;	// save argv
 	args.argc = argc;	// save argc
-	args.home_dir = malloc(MAX_DIR_NAME_LEN);
 	if ( getcwd(args.home_dir, MAX_DIR_NAME_LEN) == NULL ) {
 		perror("getwd failed in main");
-		printf("yoyogetwd failed\n");
 		exit(1);
 	}
 	strncat(args.home_dir, "/", MAX_DIR_NAME_LEN);
@@ -215,10 +218,8 @@ int main(int argc, char* argv[])
 	// Set Predicate
 	if (strncmp(argv[PRED_IDX], "-name", 5) == 0) {
 		args.pred = nameEquals;
-		args.arg_ptr = &argv[ARG_IDX];
 	} else if (strncmp(argv[PRED_IDX], "-type", 5) == 0) {
 		args.pred = typeEquals;
-		// set arg to file type
 	} else if (strncmp(argv[PRED_IDX], "-perm", 5) == 0) {
 		args.pred = permEquals;
 	}
@@ -243,12 +244,8 @@ int main(int argc, char* argv[])
 	printf("Home dir: %s\n", args.home_dir);
 #endif
 
-	// unsigned str_len = strlen(args.home_dir) + strlen(argv[0]) + 1;
-	// char * str = malloc(str_len);
-	// memset(str, 0, sizeof(str_len));
-	// strcat(str, args.home_dir);
 
-	handleDirectory(args);
+	handleDirectory(&args);
 
 	closedir(args.dir);
 

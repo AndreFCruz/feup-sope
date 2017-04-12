@@ -8,6 +8,9 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+// SFIND
+// simplified version of find
+
 #define TEST 0
 
 #define MAX_DIR_NAME_LEN	256
@@ -107,6 +110,18 @@ bool handleDirectory(const struct args_t * args) {
 	return true; // FUTURE: change
 }
 
+char * getAbsPath(const char * base_dir, const char * entry_name) {
+	int abs_len = strlen(base_dir) + strlen(entry_name) + 1;
+
+	char * path = malloc(abs_len);
+	memset(path, 0, abs_len);
+	strcat(path, base_dir);
+	strncat(path, "/", 1);
+	strcat(path, entry_name);
+
+	return path;
+}
+
 char * const * get_argv(int argc, char * const argv[], const char * sub_dir) {
 
 	// allocate memory and copy strings
@@ -119,15 +134,7 @@ char * const * get_argv(int argc, char * const argv[], const char * sub_dir) {
 	}
 	new_argv[argc] = NULL;
 
-	int arg1_len = strlen(new_argv[DIR_IDX]) + strlen(sub_dir) + 1;
-	char * arg1 = malloc(arg1_len);
-	memset(arg1, 0, arg1_len);
-	strcat(arg1, new_argv[DIR_IDX]);
-	strncat(arg1, "/", 1);
-	strcat(arg1, sub_dir);
-
-	new_argv[DIR_IDX] = arg1;
-
+	new_argv[DIR_IDX] = getAbsPath(argv[DIR_IDX], sub_dir);
 
 	// FUTURE ? 
 	// TODO perguntar se se deve libertar a memória do argv do child process (child copia?)
@@ -177,8 +184,9 @@ bool typeEquals(const struct args_t * args, const struct dirent * file) {
 }
 
 bool permEquals(const struct args_t * args, const struct dirent * file) {
-	// obtain permissions from dirent
-	// has absolute path ?
+	unsigned perm = strtol(args->argv[ARG_IDX], NULL, 8);
+
+
 
 	return false;
 }
@@ -193,20 +201,18 @@ bool printEntry(const struct args_t * args, const struct dirent * entry) {
 }
 
 bool deleteEntry(const struct args_t * args, const struct dirent * entry) {
-	char str[MAX_DIR_NAME_LEN];
-	memset(str, 0, MAX_DIR_NAME_LEN);
-	strcat(str, args->argv[DIR_IDX]);
-	strcat(str, "/");
-	strcat(str, entry->d_name);
-
-	printf("Deleted %s/%s\n", args->argv[DIR_IDX], entry->d_name);
+	char * str = getAbsPath(args->argv[DIR_IDX], entry->d_name);
+	int ret;
 
 #if TEST
-	return true;
+	printf("Deleted %s\n", str);
+	ret = 0;
 #else
-	int ret = remove(str);
-	return (ret != -1);
+	ret = remove(str);
+	free(str);
 #endif
+
+	return (ret != -1);
 }
 /** END OF Functions **/
 

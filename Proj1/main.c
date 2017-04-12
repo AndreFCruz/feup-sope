@@ -14,6 +14,7 @@
 #define TEST 0
 
 #define MAX_DIR_NAME_LEN	256
+#define STAT_PERM_MASK		0x000001FF
 
 typedef int bool;
 enum { false,  true };
@@ -23,6 +24,7 @@ enum { false,  true };
 #define ARG_IDX		3
 #define FUNC_IDX 	4
 
+char * getAbsPath(const char * base_dir, const char * entry_name);
 char * const * get_argv(int argc, char * const argv[], const char * sub_dir);
 
 struct args_t {
@@ -185,10 +187,15 @@ bool typeEquals(const struct args_t * args, const struct dirent * file) {
 
 bool permEquals(const struct args_t * args, const struct dirent * file) {
 	unsigned perm = strtol(args->argv[ARG_IDX], NULL, 8);
+	char * path = getAbsPath(args->argv[DIR_IDX], file->d_name);
 
+	struct stat buf;
+	if ( lstat(path, &buf) == -1 ) {
+		perror("lstat failed");
+		return false;
+	}
 
-
-	return false;
+	return (perm == (buf.st_mode & STAT_PERM_MASK));
 }
 /** END OF Predicates **/
 

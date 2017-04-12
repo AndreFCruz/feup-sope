@@ -108,58 +108,71 @@ bool handleDirectory(const struct args_t * args) {
 
 char * const * get_argv(int argc, char * const argv[], const char * sub_dir) {
 
-    // allocate memory and copy strings
-    char** new_argv = malloc((argc+1) * sizeof(*new_argv));
-    for(int i = 0; i < argc; ++i)
-    {
-        size_t length = strlen(argv[i])+1;
-        new_argv[i] = malloc(length);
-        memcpy(new_argv[i], argv[i], length);
-    }
-    new_argv[argc] = NULL;
+	// allocate memory and copy strings
+	char** new_argv = malloc((argc+1) * sizeof(*new_argv));
+	for(int i = 0; i < argc; ++i)
+	{
+		size_t length = strlen(argv[i])+1;
+		new_argv[i] = malloc(length);
+		memcpy(new_argv[i], argv[i], length);
+	}
+	new_argv[argc] = NULL;
 
-    int arg1_len = strlen(new_argv[DIR_IDX]) + strlen(sub_dir) + 1;
-    char * arg1 = malloc(arg1_len);
-    memset(arg1, 0, arg1_len);
-    strcat(arg1, new_argv[DIR_IDX]);
-    strncat(arg1, "/", 1);
-    strcat(arg1, sub_dir);
+	int arg1_len = strlen(new_argv[DIR_IDX]) + strlen(sub_dir) + 1;
+	char * arg1 = malloc(arg1_len);
+	memset(arg1, 0, arg1_len);
+	strcat(arg1, new_argv[DIR_IDX]);
+	strncat(arg1, "/", 1);
+	strcat(arg1, sub_dir);
 
-    new_argv[DIR_IDX] = arg1;
+	new_argv[DIR_IDX] = arg1;
 
 
-    // FUTURE ? 
-    // TODO perguntar se se deve libertar a memória do argv do child process (child copia?)
+	// FUTURE ? 
+	// TODO perguntar se se deve libertar a memória do argv do child process (child copia?)
 
-    // // free memory
-    // for(int i = 0; i < argc; ++i)
-    // {
-    //     free(new_argv[i]);
-    // }
-    // free(new_argv);
+	// // free memory
+	// for(int i = 0; i < argc; ++i)
+	// {
+	//     free(new_argv[i]);
+	// }
+	// free(new_argv);
 
-    return new_argv;
+	return new_argv;
 }
 
 /** Predicates **/
 bool nameEquals(const struct args_t * args, const struct dirent * file) {
 	char * name = args->argv[ARG_IDX];
 
-#if TEST
+#if TEST == 3
 	printf("testing name %s\n", name);
 #endif
 
 	return strncmp(file->d_name, name, strlen(name)) == 0 ? true : false;
 }
 
-bool typeEquals(const struct args_t * args, const struct dirent * file) {
-	unsigned char type = atoi(args->argv[ARG_IDX]);
+int getTypeInt(char c) {
+	switch (c) {
+	case 'f':
+		return DT_UNKNOWN;
+	case 'd':
+		return DT_DIR;
+	case 'l':
+		return DT_LNK;
+	default:
+		return -1;
+	}
+}
 
-#if TEST
+bool typeEquals(const struct args_t * args, const struct dirent * file) {
+	char type = *(args->argv[ARG_IDX]);
+
+#if TEST == 3
 	printf("testing type %c\n", type);
 #endif
 
-	return type == file->d_type;
+	return getTypeInt(type) == file->d_type;
 }
 
 bool permEquals(const struct args_t * args, const struct dirent * file) {
@@ -220,6 +233,12 @@ int main(int argc, char* argv[])
 		args.pred = nameEquals;
 	} else if (strncmp(argv[PRED_IDX], "-type", 5) == 0) {
 		args.pred = typeEquals;
+		
+		if ( getTypeInt(*argv[ARG_IDX]) == -1 ) {
+			printf("File type not compatible. Please use one of \"f d l\".\n");
+			exit(1);
+		}
+
 	} else if (strncmp(argv[PRED_IDX], "-perm", 5) == 0) {
 		args.pred = permEquals;
 	}

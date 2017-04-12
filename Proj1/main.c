@@ -4,7 +4,9 @@
 #include <signal.h>
 #include <string.h>
 #include <dirent.h>
+#include <sys/dir.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 
 #define TEST 0
 
@@ -55,32 +57,31 @@ bool handleDirectory(const struct args_t * args) {
 
 	// Recursively create processes to handle sub directories
 	while ( (entry = readdir(args->dir)) != NULL ) {
-#if TEST
+#if TEST == 2
 		printf("Entry: %s\n", entry->d_name);
 #endif
+		// Ignore entries "." and ".."
+		if ( strncmp(entry->d_name, ".", 1) == 0 || strncmp(entry->d_name, "..", 2) == 0 )
+			continue;
 
 		bool useful;
 		if ( (useful = (args->pred)(args, entry)) ) {
-			(args->func)(args, entry);
+			if ( ! (args->func)(args, entry) )
+				printf("Function \"%s\" failed. Entry was \"%s\"", args->argv[FUNC_IDX], entry->d_name);
 		}
 
-#if TEST
-		printf("Predicate eval: %s\n", useful ? "True" : "False");
-#endif
-
-		if ( entry->d_type == DT_DIR && strncmp(entry->d_name, ".", 1) != 0 && strncmp(entry->d_name, "..", 2) != 0 ) {
+		if ( entry->d_type == DT_DIR ) {
 			// open dir
 			// fork child with same function
 	
 			DIR * sub_dir = opendir(entry->d_name);
-			// may need to call telldir for absolute path (?)
 
 			pid_t child;
 			if ( (child = fork()) == 0 ) { // child
 				char * const * new_argv = get_argv(args->argc, args->argv, entry->d_name);
 
 #if TEST
-				printf("Creating child at: %s\n", new_argv[DIR_IDX]);
+				printf("Child at: %s\n", new_argv[DIR_IDX]);
 #endif
 
 				if (execv(args->home_dir, new_argv) == -1) {
@@ -155,7 +156,7 @@ bool nameEquals(const struct args_t * args, const struct dirent * file) {
 int getTypeInt(char c) {
 	switch (c) {
 	case 'f':
-		return DT_UNKNOWN;
+		return DT_REG;
 	case 'd':
 		return DT_DIR;
 	case 'l':
@@ -186,7 +187,7 @@ bool permEquals(const struct args_t * args, const struct dirent * file) {
 
 /** Functions **/
 bool printEntry(const struct args_t * args, const struct dirent * entry) {
-	printf("%s/%s\n", args->argv[DIR_IDX], entry->d_name);
+	printf(" -> %s/%s\n", args->argv[DIR_IDX], entry->d_name);
 
 	return true;
 }
@@ -200,7 +201,7 @@ bool deleteEntry(const struct args_t * args, const struct dirent * entry) {
 
 	printf("Deleted %s/%s\n", args->argv[DIR_IDX], entry->d_name);
 
-#if TEST == 2
+#if TEST
 	return true;
 #else
 	int ret = remove(str);
@@ -260,7 +261,9 @@ int main(int argc, char* argv[])
 
 #if TEST
 	printf("Opening dir: %s\n", argv[DIR_IDX]);
-	printf("Home dir: %s\n", args.home_dir);
+#endif
+#if TEST == 3
+	printf("Home dir:    %s\n", args.home_dir);
 #endif
 
 

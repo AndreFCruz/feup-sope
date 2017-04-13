@@ -50,7 +50,7 @@ void sigIntHandler(int signo) {
 	// scanf("%c", &ans);
 
 	// if( ans == 'y' || ans == 'Y' ) {
- //  		exit(0);
+	//  		exit(0);
 	// }
 	exit(0);
 }
@@ -78,7 +78,7 @@ bool handleDirectory(const struct args_t * args) {
 		if ( entry->d_type == DT_DIR ) {
 			// open dir
 			// fork child with same function
-	
+
 			DIR * sub_dir = opendir(entry->d_name);
 
 			pid_t child;
@@ -221,6 +221,43 @@ bool deleteEntry(const struct args_t * args, const struct dirent * entry) {
 
 	return (ret != -1);
 }
+
+bool execEntry(const struct args_t * args, const struct dirent * entry){
+	pid_t  pid;
+	int status, ret;
+	char** new_argv = malloc((args->argc+1) * sizeof(*new_argv));
+	char * str = getAbsPath(args->argv[1], entry->d_name);
+	for(int i = 0; i < args->argc; ++i)
+	{
+		size_t length;
+		if(!strcmp(args->argv[i], "{}")){
+			length = strlen(str);
+			new_argv[i] = malloc(length);
+			memcpy(new_argv[i], str, length);
+		}else{
+			length = strlen(args->argv[i])+1;
+			new_argv[i] = malloc(length);
+			memcpy(new_argv[i], args->argv[i], length);
+		}
+	}
+	new_argv[args->argc] = NULL;
+
+	if ((pid = fork()) < 0) {
+		perror("forking child process failed\n");
+		exit(1);
+	}
+	else if (pid == 0) {
+		ret = execvp(args->argv[0], args->argv);
+		perror("exec failed\n");
+
+	}
+	else {
+		while (&status != pid)
+			;
+	}
+	return (ret != -1);
+
+}
 /** END OF Functions **/
 
 int main(int argc, char* argv[])
@@ -247,7 +284,7 @@ int main(int argc, char* argv[])
 		args.pred = nameEquals;
 	} else if (strncmp(argv[PRED_IDX], "-type", 5) == 0) {
 		args.pred = typeEquals;
-		
+
 		if ( getTypeInt(*argv[ARG_IDX]) == -1 ) {
 			printf("File type not compatible. Please use one of \"f d l\".\n");
 			exit(1);
@@ -269,7 +306,7 @@ int main(int argc, char* argv[])
 	} else if ( strncmp(argv[FUNC_IDX], "-delete", 7) == 0 ) {
 		args.func = deleteEntry;
 	} else if ( strncmp(argv[FUNC_IDX], "-exec", 5) == 0 ) { // TODO handle other arguments
-		;
+		args.func = execEntry;
 	}
 
 #if TEST

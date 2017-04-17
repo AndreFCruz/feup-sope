@@ -1,3 +1,3 @@
 #Makefile for sfind
-sfind: main.c
-    gcc -Wall main.c -o sfind
+sfind: sfind.c
+    gcc -Wall sfind.c -o sfind

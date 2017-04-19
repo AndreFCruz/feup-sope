@@ -44,15 +44,14 @@ struct args_t {
 void sigIntHandler(int signo) {
 	(void) signo; // Silence Unused Parameter Warning
 
-	// char ans;
+	char ans;
 
-	// printf("Are you sure you want to terminate (Y/N)?\n");
-	// scanf("%c", &ans);
+	printf("Are you sure you want to terminate (Y/N)?\n");
+	scanf("%c", &ans);
 
-	// if( ans == 'y' || ans == 'Y' ) {
-	//  		exit(0);
-	// }
-	exit(0);
+	if( ans == 'y' || ans == 'Y' ) {
+		exit(0);
+	}
 }
 
 
@@ -105,11 +104,17 @@ bool handleDirectory(const struct args_t * args) {
 		}
 	}
 
-	int status;
-	// Wait for child results -- Handle Exit Status ?
-	while( (waitpid(-1, &status, 0)) != -1 );
+	int status; pid_t child; bool ret = true;
 
-	return true; // FUTURE: change
+	// Wait for child results
+	while ( (child = wait(&status)) > 0 ) {
+		if (*status != 0) {
+			printf("Child with ID %d exited abnormally. Exit status was: %d.\n", child, status);
+			ret = false;
+		}
+	}
+
+	return ret;
 }
 
 char * getAbsPath(const char * base_dir, const char * entry_name) {
@@ -124,6 +129,10 @@ char * getAbsPath(const char * base_dir, const char * entry_name) {
 	return path;
 }
 
+/**
+ * Creates newly allocated argv
+ * featuring the sub_dir path as DIR_IDX argument
+ */
 char * const * get_argv(int argc, char * const argv[], const char * sub_dir) {
 
 	// allocate memory and copy strings
@@ -222,25 +231,34 @@ bool deleteEntry(const struct args_t * args, const struct dirent * entry) {
 	return (ret != -1);
 }
 
-bool execEntry(const struct args_t * args, const struct dirent * entry){
+bool execEntry(const struct args_t * args, const struct dirent * entry) {
 	pid_t  pid;
 	int status, ret;
-	char** new_argv = malloc((args->argc+1) * sizeof(*new_argv));
-	char * str = getAbsPath(args->argv[1], entry->d_name);
-	for(int i = 0; i < args->argc; ++i)
+	char** new_argv = malloc((args->argc - FUNC_IDX) * sizeof(*new_argv));
+	char * str = getAbsPath(args->argv[DIR_IDX], entry->d_name);
+
+	for (int old_idx = FUNC_IDX + 1, new_idx = 0; old_idx < args->argc; ++new_idx, ++old_idx)
 	{
 		size_t length;
-		if(!strcmp(args->argv[i], "{}")){
-			length = strlen(str);
-			new_argv[i] = malloc(length);
-			memcpy(new_argv[i], str, length);
-		}else{
-			length = strlen(args->argv[i])+1;
-			new_argv[i] = malloc(length);
-			memcpy(new_argv[i], args->argv[i], length);
+		if( strcmp(args->argv[old_idx], "{}") == 0 || strcmp(args->argv[old_idx], "'{}'") == 0 ) {
+			new_argv[new_idx] = str;
+		} else {
+			length = strlen(args->argv[old_idx])+1;
+			new_argv[new_idx] = malloc(length);
+			memcpy(new_argv[new_idx], args->argv[old_idx], length);
 		}
 	}
 	new_argv[args->argc] = NULL;
+
+#if TEST == 4
+	printf("-exec function called on %s at %s\n", entry->d_name, args->argv[DIR_IDX]);
+
+	printf("argv: ");
+	for (int i = 0; new_argv[i] != NULL; ++i) {
+		printf("%d. %s; ", i, new_argv[i]);
+	}
+	printf("\n");
+#endif
 
 	if ((pid = fork()) < 0) {
 		perror("forking child process failed\n");
@@ -267,6 +285,8 @@ int main(int argc, char* argv[])
 		// TODO print usage
 		exit(0);
 	}
+
+	// TODO: SIGINT shoud be handled only by original process - easier with threads..
 	signal(SIGINT, sigIntHandler);
 
 	struct args_t args;
@@ -317,10 +337,10 @@ int main(int argc, char* argv[])
 #endif
 
 
-	handleDirectory(&args);
+	bool status = handleDirectory(&args);
 
 	closedir(args.dir);
 
-	exit(0);
+	exit(status ? 0 : 1);
 }
 

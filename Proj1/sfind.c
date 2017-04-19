@@ -84,7 +84,7 @@ bool handleDirectory(const struct args_t * args) {
 			if ( (child = fork()) == 0 ) { // child
 				char * const * new_argv = get_argv(args->argc, args->argv, entry->d_name);
 
-#if TEST
+#if TEST == 1
 				printf("Child at: %s\n", new_argv[DIR_IDX]);
 #endif
 
@@ -97,7 +97,7 @@ bool handleDirectory(const struct args_t * args) {
 				perror("error in fork");
 				return false;
 			} else {
-#if TEST
+#if TEST == 1
 				printf("Created child %d\n", child);
 #endif
 			}
@@ -108,7 +108,7 @@ bool handleDirectory(const struct args_t * args) {
 
 	// Wait for child results
 	while ( (child = wait(&status)) > 0 ) {
-		if (*status != 0) {
+		if (status != 0) {
 			printf("Child with ID %d exited abnormally. Exit status was: %d.\n", child, status);
 			ret = false;
 		}
@@ -233,11 +233,11 @@ bool deleteEntry(const struct args_t * args, const struct dirent * entry) {
 
 bool execEntry(const struct args_t * args, const struct dirent * entry) {
 	pid_t  pid;
-	int status, ret;
 	char** new_argv = malloc((args->argc - FUNC_IDX) * sizeof(*new_argv));
 	char * str = getAbsPath(args->argv[DIR_IDX], entry->d_name);
 
-	for (int old_idx = FUNC_IDX + 1, new_idx = 0; old_idx < args->argc; ++new_idx, ++old_idx)
+	int old_idx = FUNC_IDX + 1, new_idx = 0;
+	for ( ; old_idx < args->argc; ++new_idx, ++old_idx )
 	{
 		size_t length;
 		if( strcmp(args->argv[old_idx], "{}") == 0 || strcmp(args->argv[old_idx], "'{}'") == 0 ) {
@@ -248,32 +248,32 @@ bool execEntry(const struct args_t * args, const struct dirent * entry) {
 			memcpy(new_argv[new_idx], args->argv[old_idx], length);
 		}
 	}
-	new_argv[args->argc] = NULL;
+	new_argv[new_idx] = NULL;
 
 #if TEST == 4
-	printf("-exec function called on %s at %s\n", entry->d_name, args->argv[DIR_IDX]);
+	printf("* -exec function called on %s at %s\n", entry->d_name, args->argv[DIR_IDX]);
 
 	printf("argv: ");
 	for (int i = 0; new_argv[i] != NULL; ++i) {
 		printf("%d. %s; ", i, new_argv[i]);
 	}
-	printf("\n");
-#endif
+	printf(" *\n");
+
+#else
 
 	if ((pid = fork()) < 0) {
 		perror("forking child process failed\n");
 		exit(1);
 	}
 	else if (pid == 0) {
-		ret = execvp(args->argv[0], args->argv);
+		chdir(args->argv[DIR_IDX]);
+		execvp(args->argv[FUNC_IDX + 1], new_argv);
 		perror("exec failed\n");
+	}
 
-	}
-	else {
-		while (&status != pid)
-			;
-	}
-	return (ret != -1);
+#endif
+
+	return true;
 
 }
 /** END OF Functions **/
@@ -329,7 +329,7 @@ int main(int argc, char* argv[])
 		args.func = execEntry;
 	}
 
-#if TEST
+#if TEST == 1
 	printf("Opening dir: %s\n", argv[DIR_IDX]);
 #endif
 #if TEST == 3

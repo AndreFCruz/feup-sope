@@ -1,15 +1,17 @@
-struct request_t {
-	static int serial_no;
-	char gender;
-	int duration;
-	int no_rejections;
-}
+#include "pedido.h"
 
 int no_places = 0;
 char gender;
 int out_fifo, in_fifo;
 int out_fd;
 char time_unit;
+
+/*
+void writeRegist(int thread_id, struct request_t req)
+{
+	// Write formatted (time_instant ?) , pid, tid, req.serial_no, req.gender, req.duration, (tip ?)
+}
+*/
 
 /**
 * Simulates the steam room utilisation

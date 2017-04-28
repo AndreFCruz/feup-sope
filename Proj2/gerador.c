@@ -5,17 +5,17 @@ struct request_t {
 	int no_rejections;
 }
 
-int request_t::serial_no=0;
+int request_t::serial_no = 0;
 
-int max_requests=0;
+int max_requests = 0;
 
-int max_duration=0;
+int max_duration = 0;
 
-int in_fd, out_fd;
+int in_fd = 0, out_fd = 0;
 
 
 /* YET TO FINISH 
-void * gen_request (void * arg)
+void * gen_request (void *arg)
 {
 	struct request_t req;
 		
@@ -27,11 +27,24 @@ void * gen_request (void * arg)
 
 	int req.duration = rand() % max_duration;
 
+	write(out_fd, req, sizeof(req));
 
-	void *ret=malloc(sizeof(struct request_t));
-	* (struct request_t*) ret=req;
-		
-	return ret;
+	request_t::serial_no++;
+
+	return NULL;
+}*/
+
+/* YET TO FINISH
+void * listener(void *arg)
+{
+	struct request_t req;
+
+	read(in_fd, req, sizeof(req));
+	req.no_rejections++;
+	if(req.rejections<3)
+		write(out_fd, req, sizeof(req));
+	
+	return NULL;
 }*/
 
 int main(int argc, char argv[][]){

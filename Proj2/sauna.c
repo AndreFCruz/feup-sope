@@ -7,7 +7,8 @@ struct request_t {
 
 int no_places = 0;
 char gender;
-
+int out_fifo, in_fifo;
+int out_fd;
 char time_unit;
 
 /**
@@ -39,7 +40,7 @@ int main(int argc, char argv[][]){
 
 	/* END Storing the main args */
 
-	/* BEGIN Making and opening FIFOs */
+	/* BEGIN Making and opening FIFOs and regist_file */
 
 	if (mkfifo("/tmp/rejeitados",0660)<0)
 	{
@@ -51,17 +52,29 @@ int main(int argc, char argv[][]){
 		exit(3);
 	}
 
-	if ((out_fd=open("/tmp/rejeitados",O_WRONLY)) ==-1)
+	if ((out_fifo=open("/tmp/rejeitados",O_WRONLY)) ==-1)
 		{
 			printf("Can't open FIFO /tmp/rejeitados\n");
 			exit(4);
 		}
 
-	if ((in_fd=open("/tmp/entrada",O_RDONLY)) ==-1)
+	if ((in_fifo=open("/tmp/entrada",O_RDONLY)) ==-1)
 		{
 			printf("Can't open FIFO /tmp/entrada\n");
 			exit(5);
 		}
 
-	/* END Making and oppening FIFOs */
+	int pid = getpid();
+	char * filename=malloc(sizeof(char)*50);
+	snprintf(filename, 50, "/tmp/bal.%d", pid);
+
+	if((out_fd=open(filename, O_RDWR|O_CREAT, 0666)) == -1)
+	{
+		printf("Can't open FIFO %s\n",filename);
+		exit(6);
+	}
+
+	/* END Making and oppening FIFOs and regist_file */
+
+	exit(0);
 }

@@ -1,7 +1,6 @@
 #include "pedido.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -23,7 +22,7 @@ char time_unit;
 int pid;
 
 
-/* YET TO FINISH 
+// YET TO FINISH 
 void * gen_request (void *arg)
 {
 	struct request_t req;
@@ -34,14 +33,16 @@ void * gen_request (void *arg)
 	else
 		req.gender='F';
 
-	int req.duration = rand() % max_duration;
+	req.duration = rand() % max_duration;
 
-	write(out_fifo, req, sizeof(req));
+	write(out_fifo, &req, sizeof(req));
 
-	request_t::serial_no++;
+	//TODO: How to store the serial_no?
+	//request_t::serial_no++;
 
 	return NULL;
-}*/
+}
+	
 
 /*
 void writeRegist(struct request_t req)
@@ -50,18 +51,18 @@ void writeRegist(struct request_t req)
 }
 */
 
-/* YET TO FINISH
+// YET TO FINISH
 void * listener(void *arg)
 {
 	struct request_t req;
 
-	read(in_fifo, req, sizeof(req));
+	read(in_fifo, &req, sizeof(req));
 	req.no_rejections++;
-	if(req.rejections<3)
-		write(out_fifo, req, sizeof(req));
+	if(req.no_rejections<3)
+		write(out_fifo, &req, sizeof(req));
 	
 	return NULL;
-}*/
+}
 
 int main(int argc, char** argv){
 	if(argc!=4)

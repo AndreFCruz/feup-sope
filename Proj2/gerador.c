@@ -17,7 +17,8 @@ int in_fifo = 0, out_fifo = 0;
 
 int out_fd = 0;
 
-char time_unit;
+//Conversion to seconds
+float time_unit;
 
 int pid;
 
@@ -26,7 +27,7 @@ int pid;
 void * gen_request (void *arg)
 {
 	struct request_t req;
-		
+
 	int gen = rand() % 2;
 	if(gen==0)
 		req.gender='M';
@@ -42,7 +43,7 @@ void * gen_request (void *arg)
 
 	return NULL;
 }
-	
+
 
 /*
 void writeRegist(struct request_t req)
@@ -79,7 +80,22 @@ int main(int argc, char** argv){
 	max_duration=atoi(argv[2]);
 
 	if(strlen(argv[3])==1)
-		time_unit=argv[3][1];
+	{
+		if(strcmp(argv[3], "u") == 0)
+			time_unit=10^(-6);
+		else
+		{
+			if(strcmp(argv[3], "m") == 0)
+				time_unit=60;
+			else
+			{
+				if(strcmp(argv[3], "s") == 0)
+					time_unit=1;
+				else
+					exit(2);
+			}
+		}	
+	}
 	else
 		exit(2);
 

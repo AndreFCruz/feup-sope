@@ -1,4 +1,12 @@
 #include "pedido.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <string.h>
 
 int no_places = 0;
 char gender;
@@ -24,7 +32,7 @@ void * utilisation_sim(void *arg){
 	return NULL;
 }
 
-int main(int argc, char argv[][]){
+int main(int argc, char** argv){
 	if(argc!=3)
 	{
 		printf("Usage: %s <no_places> <time_unit>\n", argv[0]);
@@ -35,7 +43,7 @@ int main(int argc, char argv[][]){
 
 	no_places=atoi(argv[1]);
 
-	if(strlen(argv[2]==1))
+	if(strlen(argv[2])==1)
 		time_unit=argv[2][1];
 	else
 		exit(1);

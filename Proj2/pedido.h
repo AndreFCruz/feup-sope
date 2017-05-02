@@ -2,11 +2,11 @@
 #define REJECTED	1
 #define SERVED		2
 
-struct request_t {
-	static int serial_no;
+struct {
+	int serial_no;
 	char gender;
 	int duration;
 	int no_rejections;
-}
+} request_t;
 
-int request_t::serial_no = 0;
+//TODO: How can serial_no be a static counter?

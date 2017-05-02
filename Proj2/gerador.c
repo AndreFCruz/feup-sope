@@ -1,10 +1,22 @@
 #include "pedido.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <unistd.h>
+#include <string.h>
+#include <time.h>
 
 int max_requests = 0;
 
 int max_duration = 0;
 
 int in_fifo = 0, out_fifo = 0;
+
+int out_fd = 0;
 
 char time_unit;
 
@@ -51,7 +63,7 @@ void * listener(void *arg)
 	return NULL;
 }*/
 
-int main(int argc, char argv[][]){
+int main(int argc, char** argv){
 	if(argc!=4)
 	{
 		printf("Usage: %s <no_requests> <max_duration> <time_unit>\n", argv[0]);
@@ -65,7 +77,7 @@ int main(int argc, char argv[][]){
 	max_requests=atoi(argv[1]);
 	max_duration=atoi(argv[2]);
 
-	if(strlen(argv[3]==1))
+	if(strlen(argv[3])==1)
 		time_unit=argv[3][1];
 	else
 		exit(2);

@@ -55,24 +55,27 @@ int main(int argc, char** argv){
 	if (mkfifo("/tmp/rejeitados",0660)<0)
 	{
 		if (errno==EEXIST)
-			printf("FIFO /tmp/entrada already exists\n");
+			printf("FIFO /tmp/rejeitados already exists\n");
 		else
+		{
 			printf("Can't create FIFO\n");
+			exit(3);
+		}
+	}
 
-		exit(3);
+	if ((in_fifo=open("/tmp/entrada",O_RDONLY)) ==-1)
+	{
+		printf("Can't open FIFO /tmp/entrada\n");
+		exit(5);
 	}
 
 	if ((out_fifo=open("/tmp/rejeitados",O_WRONLY)) ==-1)
-		{
-			printf("Can't open FIFO /tmp/rejeitados\n");
-			exit(4);
-		}
+	{
+		printf("Can't open FIFO /tmp/rejeitados\n");
+		exit(4);
+	}
 
-	if ((in_fifo=open("/tmp/entrada",O_RDONLY)) ==-1)
-		{
-			printf("Can't open FIFO /tmp/entrada\n");
-			exit(5);
-		}
+	printf("HERE!\n");
 
 	int pid = getpid();
 	char * filename=malloc(sizeof(char)*50);

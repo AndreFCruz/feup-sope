@@ -108,9 +108,10 @@ int main(int argc, char** argv){
 		if (errno==EEXIST)
 			printf("FIFO /tmp/entrada already exists\n");
 		else
-			printf("Can't create FIFO\n");
-
-		exit(3);
+			{
+				printf("Can't create FIFO\n");
+				exit(3);
+			}
 	}
 
 	if ((in_fifo=open("/tmp/entrada",O_WRONLY)) == -1)
@@ -118,6 +119,8 @@ int main(int argc, char** argv){
 		printf("Can't open FIFO /tmp/entrada\n");
 		exit(4);
 	}
+	
+	printf("HERE!\n");
 
 	if ((out_fifo=open("/tmp/rejeitados",O_RDONLY)) == -1)
 	{

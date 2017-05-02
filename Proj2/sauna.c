@@ -1,4 +1,5 @@
 #include "pedido.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -8,6 +9,8 @@
 #include <unistd.h>
 #include <semaphore.h>
 #include <string.h>
+#include <pthread.h>
+#include <sys/times.h>
 
 #define SHARED 0
 
@@ -15,12 +18,20 @@ int no_places = 0;
 char gender;
 int out_fifo, in_fifo;
 int out_fd;
-int time_init;	/* Initial time */
+int pid;
 
 sem_t out_sem;
-sem_t places_sem;
+
+static clock_t st_init;
+
+struct tms st_cpu;
 
 pthread_mutex_t mut=PTHREAD_MUTEX_INITIALIZER;
+
+/**
+* Start clock by updating st_time
+*/
+void start_clock();
 
 /**
 * Simulates the steam room utilisation
@@ -43,7 +54,7 @@ int main(int argc, char** argv){
 	no_places=atoi(argv[1]);
 
 	//Semaphore intializer
-	seminit(&out_sem, SHARED, 1);
+	sem_init(&out_sem, SHARED, 1);
 
 	fileHandler();
 
@@ -58,22 +69,25 @@ int main(int argc, char** argv){
 void * utilisation_sim(void *arg){
 	struct request_t req = * (struct request_t *) arg;
 	pthread_t tid = pthread_self();
-	int time_instant=0;
-	char* tip = 'SERVED';
+	char* tip = "SERVED";
 
 	sleep(req.duration);
+	
 	sem_wait(&out_sem);
-	dprintf(out_fd, "%-5d, %-5d, %-5d, %-5d, %-2c, %-5d, %-10s\n", time_instant, pid, tid, req.serial_no, req.gender, req.duration, /*(tip ?)*/);
+    clock_t st_time = times(&st_cpu);
+	dprintf(out_fd, "%-5li, %-5d, %-5lu, %-5d, %-2c, %-5d, %-10s\n", st_time-st_init, pid, tid, req.serial_no, req.gender, req.duration,  tip);
 	sem_post(&out_sem);
 
-	pthread_mutex_lock(&places_sem); 
+	pthread_mutex_lock(&mut); 
 	no_places--;
- 	pthread_mutex_unlock(&places_sem); 
+ 	pthread_mutex_unlock(&mut); 
 
 	return NULL;
 }
 
 void fileHandler(){
+	start_clock();
+
 	if (mkfifo("/tmp/rejeitados",0660)<0)
 	{
 		if (errno==EEXIST)
@@ -97,7 +111,7 @@ void fileHandler(){
 		exit(4);
 	}
 
-	int pid = getpid();
+	pid = getpid();
 	char * filename=malloc(sizeof(char)*50);
 	snprintf(filename, 50, "/tmp/bal.%d", pid);
 
@@ -106,4 +120,8 @@ void fileHandler(){
 		printf("Can't open FIFO %s\n",filename);
 		exit(6);
 	}
+}
+
+void start_clock(){
+    st_init = times(&st_cpu);
 }

@@ -282,7 +282,6 @@ int main(int argc, char* argv[])
 {
 	if (argc < 5) {
 		printf("Invalid number of arguments\n");
-		// TODO print usage
 		exit(0);
 	}
 

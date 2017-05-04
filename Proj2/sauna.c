@@ -79,7 +79,7 @@ int main(int argc, char** argv){
 }
 
 void * utilization_sim(void *arg){
-	request_t req = * (struct request_t *) arg;
+	Request req = * (Request *) arg;
 	char gender = request_is_male(&req) ? 'M' : 'F';
 	pthread_t tid = pthread_self();
 	char* tip = "SERVED";

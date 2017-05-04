@@ -71,6 +71,10 @@ int request_is_female(Request * self) {
 	return (self->gender == FEMALE);
 }
 
+char request_get_gender(Request * self) {
+	return self->gender == MALE ? 'M' : 'F';
+}
+
 
 
 

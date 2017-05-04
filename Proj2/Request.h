@@ -20,4 +20,6 @@ int request_is_male(Request * self);
 
 int request_is_female(Request * self);
 
+char request_get_gender(Request * self);
+
 #endif /* __REQUEST_H */

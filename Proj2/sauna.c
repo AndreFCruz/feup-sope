@@ -79,17 +79,18 @@ int main(int argc, char** argv){
 }
 
 void * utilization_sim(void *arg){
-	struct request_t req = * (struct request_t *) arg;
+	request_t req = * (struct request_t *) arg;
+	char gender = request_is_male(&req) ? 'M' : 'F';
 	pthread_t tid = pthread_self();
 	char* tip = "SERVED";
 
-	sleep(req.duration);
+	sleep(request_get_duration(&req));
 	
 	//timespec_get
 
 	sem_wait(&out_sem);
     clock_t st_time = times(&st_cpu);
-	dprintf(out_fd, "%-5li, %-5d, %-5lu, %-5d, %-2c, %-5d, %-10s\n", st_time-st_init, pid, tid, req.serial_no, req.gender, req.duration,  tip);
+	dprintf(out_fd, "%-5li, %-5d, %-5lu, %-5d, %-2c, %-5d, %-10s\n", st_time-st_init, pid, tid, request_get_serial_no(&req), gender, request_get_duration(&req),  tip);
 	sem_post(&out_sem);
 
 	pthread_mutex_lock(&mut); 

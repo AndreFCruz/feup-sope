@@ -73,13 +73,13 @@ int main(int argc, char** argv){
 	//Closing files and deleting created FIFO
 	close(in_fifo);
 	close(out_fifo);
-	unlink(FIFO_REJECTED);
+	unlink(REJECTED_FIFO_PATH);
 
 	exit(0);
 }
 
 void * utilization_sim(void *arg){
-	request_t req = * (struct request_t *) arg;
+	Request req = * (Request *) arg;
 	char gender = request_is_male(&req) ? 'M' : 'F';
 	pthread_t tid = pthread_self();
 	char* tip = "SERVED";
@@ -103,7 +103,7 @@ void * utilization_sim(void *arg){
 void fileHandler(){
 	start_clock();
 
-	if (mkfifo(FIFO_REJECTED,0660)<0)
+	if (mkfifo(REJECTED_FIFO_PATH,0660)<0)
 	{
 		if (errno==EEXIST)
 			printf("FIFO FIFO_REJECTED already exists\n");
@@ -114,13 +114,13 @@ void fileHandler(){
 		}
 	}
 
-	if ((in_fifo=open(FIFO_ENTRY,O_RDONLY)) ==-1)
+	if ((in_fifo=open(REQUESTS_FIFO_PATH,O_RDONLY)) ==-1)
 	{
-		printf("Can't open FIFO FIFO_ENTRY\n");
+		printf("Can't open FIFO REQUESTS_FIFO_PATH\n");
 		exit(5);
 	}
 
-	if ((out_fifo=open(FIFO_REJECTED,O_WRONLY)) ==-1)
+	if ((out_fifo=open(REJECTED_FIFO_PATH,O_WRONLY)) ==-1)
 	{
 		printf("Can't open FIFO FIFO_REJECTED\n");
 		exit(4);
@@ -143,10 +143,10 @@ void start_clock(){
 
 void * mainThread(void * arg){
 	int fd = * (int *) arg;
-	struct request_t req;
+	Request req;
 	pthread_t threads[MAX_THREADS];
 	int i = 0;
-	while(read(fd, &req, sizeof(struct request_t))){
+	while(read(fd, &req, sizeof(Request))){
 		pthread_create(&threads[i], NULL, utilization_sim, (void *) &req);
 		pthread_join(threads[i], NULL);
 		i++;

@@ -94,6 +94,8 @@ int main(int argc, char * argv[]) {
 	// Initiate threads
 	// generate requests && listen for rejected
 
+	// start rejected_listener first!!
+
 
 	exit(0);
 }

@@ -1,6 +1,8 @@
 #ifndef __REQUEST_H
 #define __REQUEST_H
 
+#include <stdlib.h>
+
 struct request_t;
 typedef struct request_t Request;
 

@@ -1,4 +1,6 @@
 #include "pedido.h"
+#include "Request.h"
+#include "io.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,12 +15,14 @@
 #include <sys/times.h>
 
 #define SHARED 0
+#define MAX_THREADS 1000
 
 int no_places = 0;
 char gender;
 int out_fifo, in_fifo;
 int out_fd;
 int pid;
+
 
 sem_t out_sem;
 
@@ -34,9 +38,14 @@ pthread_mutex_t mut=PTHREAD_MUTEX_INITIALIZER;
 void start_clock();
 
 /**
-* Simulates the steam room utilisation
+* Simulates the steam room utilization
 */
-void * utilisation_sim(void *arg);
+void * utilization_sim(void *arg);
+
+/**
+ * Simulates the reception and processing of the requests
+ */
+void * mainThread(void * arg);
 
 /**
 * Making and opening FIFOs and regist file
@@ -58,24 +67,30 @@ int main(int argc, char** argv){
 
 	fileHandler();
 
+	pthread_t tid1;
+	pthread_create(&tid1, NULL, mainThread, (void *)&in_fifo);
+
 	//Closing files and deleting created FIFO
 	close(in_fifo);
 	close(out_fifo);
-	unlink("/tmp/rejeitados");
+	unlink(FIFO_REJECTED);
 
 	exit(0);
 }
 
-void * utilisation_sim(void *arg){
-	struct request_t req = * (struct request_t *) arg;
+void * utilization_sim(void *arg){
+	request_t req = * (struct request_t *) arg;
+	char gender = request_is_male(&req) ? 'M' : 'F';
 	pthread_t tid = pthread_self();
 	char* tip = "SERVED";
 
-	sleep(req.duration);
+	sleep(request_get_duration(&req));
 	
+	//timespec_get
+
 	sem_wait(&out_sem);
     clock_t st_time = times(&st_cpu);
-	dprintf(out_fd, "%-5li, %-5d, %-5lu, %-5d, %-2c, %-5d, %-10s\n", st_time-st_init, pid, tid, req.serial_no, req.gender, req.duration,  tip);
+	dprintf(out_fd, "%-5li, %-5d, %-5lu, %-5d, %-2c, %-5d, %-10s\n", st_time-st_init, pid, tid, request_get_serial_no(&req), gender, request_get_duration(&req),  tip);
 	sem_post(&out_sem);
 
 	pthread_mutex_lock(&mut); 
@@ -88,10 +103,10 @@ void * utilisation_sim(void *arg){
 void fileHandler(){
 	start_clock();
 
-	if (mkfifo("/tmp/rejeitados",0660)<0)
+	if (mkfifo(FIFO_REJECTED,0660)<0)
 	{
 		if (errno==EEXIST)
-			printf("FIFO /tmp/rejeitados already exists\n");
+			printf("FIFO FIFO_REJECTED already exists\n");
 		else
 		{
 			printf("Can't create FIFO\n");
@@ -99,15 +114,15 @@ void fileHandler(){
 		}
 	}
 
-	if ((in_fifo=open("/tmp/entrada",O_RDONLY)) ==-1)
+	if ((in_fifo=open(FIFO_ENTRY,O_RDONLY)) ==-1)
 	{
-		printf("Can't open FIFO /tmp/entrada\n");
+		printf("Can't open FIFO FIFO_ENTRY\n");
 		exit(5);
 	}
 
-	if ((out_fifo=open("/tmp/rejeitados",O_WRONLY)) ==-1)
+	if ((out_fifo=open(FIFO_REJECTED,O_WRONLY)) ==-1)
 	{
-		printf("Can't open FIFO /tmp/rejeitados\n");
+		printf("Can't open FIFO FIFO_REJECTED\n");
 		exit(4);
 	}
 
@@ -124,4 +139,16 @@ void fileHandler(){
 
 void start_clock(){
     st_init = times(&st_cpu);
+}
+
+void * mainThread(void * arg){
+	int fd = * (int *) arg;
+	struct request_t req;
+	pthread_t threads[MAX_THREADS];
+	int i = 0;
+	while(read(fd, &req, sizeof(struct request_t))){
+		pthread_create(&threads[i], NULL, utilization_sim, (void *) &req);
+		pthread_join(threads[i], NULL);
+		i++;
+	}
 }

@@ -73,6 +73,8 @@ void * utilisation_sim(void *arg){
 
 	sleep(req.duration);
 	
+	//timespec_get
+
 	sem_wait(&out_sem);
     clock_t st_time = times(&st_cpu);
 	dprintf(out_fd, "%-5li, %-5d, %-5lu, %-5d, %-2c, %-5d, %-10s\n", st_time-st_init, pid, tid, req.serial_no, req.gender, req.duration,  tip);

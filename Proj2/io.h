@@ -2,7 +2,8 @@
 #define __IO_H
 
 
-const char * FIFO_ENTRY = "/tmp/entrada";
-const char * FIFO_REJECTED = "/tmp/rejeitados";
+const char * REQUESTS_FIFO_PATH = "/tmp/entrada";
+const char * REJECTED_FIFO_PATH = "/tmp/rejeitados";
+const char * LOGS_FILE_PATH = "/tmp/ger.";
 
 #endif

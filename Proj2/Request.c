@@ -41,6 +41,8 @@ Request * new_request() {
 	self->gender = rand() % 2 ? MALE : FEMALE;
 	self->duration = rand() % max_duration + 1;
 	self->num_rejections = 0;
+
+	return self;
 }
 
 void delete_request(Request * self) {
@@ -75,6 +77,9 @@ char request_get_gender(Request * self) {
 	return self->gender == MALE ? 'M' : 'F';
 }
 
+size_t request_get_sizeof() {
+	return sizeof(Request);
+}
 
 
 

@@ -79,26 +79,6 @@ int main(int argc, char** argv){
 	max_requests=atoi(argv[1]);
 	max_duration=atoi(argv[2]);
 
-	if(strlen(argv[3])==1)
-	{
-		if(strcmp(argv[3], "u") == 0)
-			time_unit=10^(-6);
-		else
-		{
-			if(strcmp(argv[3], "m") == 0)
-				time_unit=60;
-			else
-			{
-				if(strcmp(argv[3], "s") == 0)
-					time_unit=1;
-				else
-					exit(2);
-			}
-		}	
-	}
-	else
-		exit(2);
-
 	/* END Storing the main args */
 
 	/* BEGIN Making and opening FIFOs and regist_file */

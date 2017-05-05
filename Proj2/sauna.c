@@ -77,6 +77,8 @@ int main(int argc, char** argv){
 	sem_init(&out_sem, SHARED, 1);
 	sem_init(&places_sem, SHARED, 1);
 
+	pthread_mutex_init(&mut);
+
 	fileHandler();
 
 	pthread_t tid1;
@@ -160,6 +162,7 @@ void * mainThread(void * arg){
 		char* tip="RECEIVED";
 
 		print_register(&req,tip);
+		pthread_mutex_lock(&mut);
 		
 		if(request_get_gender(&req)==gender)
 		{
@@ -183,21 +186,22 @@ void * mainThread(void * arg){
 			}
 		}
 
-
-		int j=0;
-		for(j; j<i; j++){
-			pthread_join(threads[j], NULL);
-		}
-
-		return NULL;
+		pthread_mutex_unlock(&mut);
+	}
+	int j=0;
+	for(j; j<i; j++){
+		pthread_join(threads[j], NULL);
 	}
 
-	void print_register(Request* req, char* tip){
-		pthread_t tid = pthread_self();
-		double time_req;
-		get_clock(&time_req);
+	return NULL;
+}
 
-		sem_wait(&out_sem);
-		dprintf(out_fd, "%-5lf, %-5d, %-5lu, %-5d, %-2c, %-5d, %-10s\n", time_req-time_init, pid, tid, request_get_serial_no(req), request_get_gender(req), request_get_duration(req),  tip);
-		sem_post(&out_sem);
-	}
+void print_register(Request* req, char* tip){
+	pthread_t tid = pthread_self();
+	double time_req;
+	get_clock(&time_req);
+
+	sem_wait(&out_sem);
+	dprintf(out_fd, "%-5lf, %-5d, %-5lu, %-5d, %-2c, %-5d, %-10s\n", time_req-time_init, pid, tid, request_get_serial_no(req), request_get_gender(req), request_get_duration(req),  tip);
+	sem_post(&out_sem);
+}

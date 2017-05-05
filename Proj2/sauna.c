@@ -144,10 +144,14 @@ void * mainThread(void * arg){
 	pthread_t threads[MAX_THREADS];
 	int i = 0;
 	while(read(in_fifo, &req, sizeof(Request))>0){
+		char* tip="RECEIVED";
+
+		print_register(&req,tip);
+		
 		if(request_get_gender(&req)==gender)
 		{
 			pthread_create(&threads[i], NULL, utilization_sim, (void *) &req);
-			pthread_join(threads[i], NULL);
+			
 			i++;
 		}
 		else
@@ -156,8 +160,9 @@ void * mainThread(void * arg){
 
 			print_register(&req,tip);
 		}
+		pthread_join(threads[i], NULL);
 	}
-
+	
 	return NULL;
 }
 

@@ -30,7 +30,7 @@ void * requests_generator(void * arg);
 void * rejected_listener(void * arg);
 
 int main(int argc, char * argv[]) {
-	if (argc != 4) {
+	if (argc != 3) {
 		printf("Usage: %s <num. requests> <max. use time>\n", argv[0]);
 		exit(0);
 	}

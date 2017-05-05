@@ -16,26 +16,28 @@
 
 #define SHARED 0
 #define MAX_THREADS 1000
+#define NANO_TO_MILISECONDS 0.000001
+#define SECONDS_TO_MILISECONDS 1000
 
 int no_places = 0;
 char gender;
 int out_fifo, in_fifo;
 int out_fd;
 int pid;
-
+double time_init;
 
 sem_t out_sem;
-
-static clock_t st_init;
-
-struct tms st_cpu;
+sem_t places_sem;
 
 pthread_mutex_t mut=PTHREAD_MUTEX_INITIALIZER;
 
+
+void print_register(Request* req, char* tip);
+
 /**
-* Start clock by updating st_time
+* Gets actual clock miliseconds
 */
-void start_clock();
+void get_clock(double *time);
 
 /**
 * Simulates the steam room utilization
@@ -62,13 +64,16 @@ int main(int argc, char** argv){
 	//Storing the main args
 	no_places=atoi(argv[1]);
 
+	get_clock(&time_init);
+
 	//Semaphore intializer
 	sem_init(&out_sem, SHARED, 1);
+	sem_init(&places_sem, SHARED, 1);
 
 	fileHandler();
 
 	pthread_t tid1;
-	pthread_create(&tid1, NULL, mainThread, (void *)&in_fifo);
+	pthread_create(&tid1, NULL, mainThread, NULL);
 
 	//Closing files and deleting created FIFO
 	close(in_fifo);
@@ -79,38 +84,29 @@ int main(int argc, char** argv){
 }
 
 void * utilization_sim(void *arg){
+	sem_wait(&places_sem);
 	Request req = * (Request *) arg;
-	char gender = request_is_male(&req) ? 'M' : 'F';
-	pthread_t tid = pthread_self();
 	char* tip = "SERVED";
-
-	sleep(request_get_duration(&req));
 	
-	//timespec_get
+	sleep(request_get_duration(&req));
 
-	sem_wait(&out_sem);
-    clock_t st_time = times(&st_cpu);
-	dprintf(out_fd, "%-5li, %-5d, %-5lu, %-5d, %-2c, %-5d, %-10s\n", st_time-st_init, pid, tid, request_get_serial_no(&req), gender, request_get_duration(&req),  tip);
-	sem_post(&out_sem);
-
-	pthread_mutex_lock(&mut); 
-	no_places--;
- 	pthread_mutex_unlock(&mut); 
+	print_register(&req,tip);
+	sem_post(&places_sem);
 
 	return NULL;
 }
 
 void fileHandler(){
-	start_clock();
-
-	if (mkfifo(REJECTED_FIFO_PATH,0660)<0)
-	{
-		if (errno==EEXIST)
-			printf("FIFO FIFO_REJECTED already exists\n");
-		else
-		{
-			printf("Can't create FIFO\n");
-			exit(3);
+	if (mkfifo(REQUESTS_FIFO_PATH, 0666) < 0) {
+		if (errno != EEXIST) {
+			perror("Error creating FIFO");
+			exit(1);
+		}
+	}
+	if (mkfifo(REJECTED_FIFO_PATH, 0666) < 0) {
+		if (errno != EEXIST) {
+			perror("Error creating FIFO");
+			exit(1);
 		}
 	}
 
@@ -137,18 +133,40 @@ void fileHandler(){
 	}
 }
 
-void start_clock(){
-    st_init = times(&st_cpu);
+void get_clock(double *time){
+	struct timespec ts_init;
+	timespec_get(&ts_init, TIME_UTC);
+	*time=ts_init.tv_nsec*NANO_TO_MILISECONDS;
 }
 
 void * mainThread(void * arg){
-	int fd = * (int *) arg;
 	Request req;
 	pthread_t threads[MAX_THREADS];
 	int i = 0;
-	while(read(fd, &req, sizeof(Request))){
-		pthread_create(&threads[i], NULL, utilization_sim, (void *) &req);
-		pthread_join(threads[i], NULL);
-		i++;
+	while(read(in_fifo, &req, sizeof(Request))>0){
+		if(request_get_gender(&req)==gender)
+		{
+			pthread_create(&threads[i], NULL, utilization_sim, (void *) &req);
+			pthread_join(threads[i], NULL);
+			i++;
+		}
+		else
+		{
+			char* tip="REJECTED";
+
+			print_register(&req,tip);
+		}
 	}
+
+	return NULL;
+}
+
+void print_register(Request* req, char* tip){
+	pthread_t tid = pthread_self();
+	double time_req;
+	get_clock(&time_req);
+
+	sem_wait(&out_sem);
+	dprintf(out_fd, "%-5lf, %-5d, %-5lu, %-5d, %-2c, %-5d, %-10s\n", time_req-time_init, pid, tid, request_get_serial_no(req), request_get_gender(req), request_get_duration(req),  tip);
+	sem_post(&out_sem);
 }

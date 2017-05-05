@@ -16,8 +16,12 @@
 
 #define SHARED 0
 #define MAX_THREADS 1000
+
 #define NANO_TO_MILISECONDS 0.000001
 #define SECONDS_TO_MILISECONDS 1000
+
+#define MALE 0
+#define FEMALE 1
 
 int no_places = 0;
 char gender;
@@ -25,6 +29,9 @@ int out_fifo, in_fifo;
 int out_fd;
 int pid;
 double time_init;
+int received[2];
+int served[2];
+int rejected[2];
 
 sem_t out_sem;
 sem_t places_sem;
@@ -91,6 +98,12 @@ void * utilization_sim(void *arg){
 	sleep(request_get_duration(&req));
 
 	print_register(&req,tip);
+
+	int i=0;
+	sem_getvalue(&places_sem, &i);
+	if(i==0)
+		gender='';
+
 	sem_post(&places_sem);
 
 	return NULL;
@@ -156,22 +169,35 @@ void * mainThread(void * arg){
 		}
 		else
 		{
-			char* tip="REJECTED";
+			if(gender=='')
+			{
+				gender=request_get_gender(&req);
+				pthread_create(&threads[i], NULL, utilization_sim, (void *) &req);
 
-			print_register(&req,tip);
+				i++;
+			}
+			else
+			{
+				char* tip="REJECTED";
+				print_register(&req,tip);
+			}
 		}
-		pthread_join(threads[i], NULL);
+
+
+		int j=0;
+		for(j; j<i; j++){
+			pthread_join(threads[j], NULL);
+		}
+
+		return NULL;
 	}
-	
-	return NULL;
-}
 
-void print_register(Request* req, char* tip){
-	pthread_t tid = pthread_self();
-	double time_req;
-	get_clock(&time_req);
+	void print_register(Request* req, char* tip){
+		pthread_t tid = pthread_self();
+		double time_req;
+		get_clock(&time_req);
 
-	sem_wait(&out_sem);
-	dprintf(out_fd, "%-5lf, %-5d, %-5lu, %-5d, %-2c, %-5d, %-10s\n", time_req-time_init, pid, tid, request_get_serial_no(req), request_get_gender(req), request_get_duration(req),  tip);
-	sem_post(&out_sem);
-}
+		sem_wait(&out_sem);
+		dprintf(out_fd, "%-5lf, %-5d, %-5lu, %-5d, %-2c, %-5d, %-10s\n", time_req-time_init, pid, tid, request_get_serial_no(req), request_get_gender(req), request_get_duration(req),  tip);
+		sem_post(&out_sem);
+	}

@@ -110,8 +110,10 @@ void log_request_stats(generator_t * gen, Request * req, const char * msg) {
 	
 	pthread_mutex_lock( &(gen->mut_logs) );
 
-	dprintf(gen->LOGS_FILE, "%4d - %4d - %4d: %c - %4d - %s\n",
-		000,						/* current time */ // TODO CHANGE PLACEHOLDER
+	unsigned long long time_elapsed = get_current_time() - gen->START_TIME;
+
+	dprintf(gen->LOGS_FILE, "%4llu - %4d - %4d: %c - %4d - %s\n",
+		time_elapsed,		/* current time instance in miliseconds */
 		getpid(),					/* process pid */
 		request_get_serial_no(req),	/* request's serial number */
 		request_get_gender(req),	/* request's gender */

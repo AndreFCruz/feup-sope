@@ -39,7 +39,9 @@ sem_t places_sem;
 
 pthread_mutex_t mut=PTHREAD_MUTEX_INITIALIZER;
 
-
+/**
+* Prints a request to the register file
+*/
 void print_register(Request* req, char* tip);
 
 /**
@@ -94,6 +96,7 @@ int main(int argc, char** argv){
 }
 
 void * utilization_sim(void *arg){
+	//Prevent that more than one request get served at a time
 	sem_wait(&places_sem);
 	Request req = * (Request *) arg;
 	char* tip = "SERVED";
@@ -163,6 +166,8 @@ void * mainThread(void * arg){
 		char* tip="RECEIVED";
 
 		print_register(&req,tip);
+
+		//Process one request at a time, so that 'gender' doen't get corrupted
 		pthread_mutex_lock(&mut);
 		
 		if (request_get_gender(&req)==gender) {
@@ -199,6 +204,7 @@ void print_register(Request* req, char* tip){
 	double time_req;
 	get_clock(&time_req);
 
+	//Prevent more than one writing at a time
 	sem_wait(&out_sem);
 	dprintf(out_fd, "%-5lf, %-5d, %-5lu, %-5d, %-2c, %-5d, %-10s\n", time_req-time_init, pid, tid, request_get_serial_no(req), request_get_gender(req), request_get_duration(req),  tip);
 	sem_post(&out_sem);

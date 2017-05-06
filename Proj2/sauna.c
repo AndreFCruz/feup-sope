@@ -19,6 +19,7 @@
 
 #define NANO_TO_MILISECONDS 0.000001
 #define SECONDS_TO_MILISECONDS 1000
+#define MILI_TO_MICRO		1000
 
 #define MALE 0
 #define FEMALE 1
@@ -97,7 +98,7 @@ void * utilization_sim(void *arg){
 	Request req = * (Request *) arg;
 	char* tip = "SERVED";
 	
-	sleep(request_get_duration(&req));
+	usleep(request_get_duration(&req) * MILI_TO_MICRO);
 
 	print_register(&req,tip);
 
@@ -151,36 +152,32 @@ void fileHandler(){
 void get_clock(double *time){
 	struct timespec ts_init;
 	timespec_get(&ts_init, TIME_UTC);
-	*time=ts_init.tv_nsec*NANO_TO_MILISECONDS;
+	*time=ts_init.tv_nsec * NANO_TO_MILISECONDS;
 }
 
 void * mainThread(void * arg){
 	Request req;
 	pthread_t threads[MAX_THREADS];
 	int i = 0;
-	while(read(in_fifo, &req, sizeof(Request))>0){
+	while (read(in_fifo, &req, sizeof(Request))>0){
 		char* tip="RECEIVED";
 
 		print_register(&req,tip);
 		pthread_mutex_lock(&mut);
 		
-		if(request_get_gender(&req)==gender)
-		{
+		if (request_get_gender(&req)==gender) {
 			pthread_create(&threads[i], NULL, utilization_sim, (void *) &req);
 			
 			i++;
 		}
-		else
-		{
-			if(gender=='')
-			{
+		else {
+			if (gender == '') {
 				gender=request_get_gender(&req);
 				pthread_create(&threads[i], NULL, utilization_sim, (void *) &req);
 
 				i++;
 			}
-			else
-			{
+			else {
 				char* tip="REJECTED";
 				print_register(&req,tip);
 			}
@@ -188,8 +185,9 @@ void * mainThread(void * arg){
 
 		pthread_mutex_unlock(&mut);
 	}
-	int j=0;
-	for(j; j<i; j++){
+
+	int j;
+	for(j = 0; j < i; j++){
 		pthread_join(threads[j], NULL);
 	}
 

@@ -106,6 +106,8 @@ void * requests_generator(void * arg)
 		write(gen->REQUESTS_FIFO, new_req, request_get_sizeof());
 
 		wait_for_next_request();
+		
+		delete_request(new_req);
 
 		// Check for congruency
 		if (i != get_num_requests()) {

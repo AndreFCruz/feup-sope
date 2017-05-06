@@ -1,0 +1,14 @@
+# Makefile for Generator Program
+
+COMPILER_TYPE = gnu
+
+CC = gcc
+
+PROG = generator
+SRCS = generator.c generator_t.c Request.c utils.c
+
+CFLAGS = -Wall
+
+
+$(PROG) : $(SRCS)
+	$(CC) $(CFLAGS) $(SRCS) -o $(PROG)

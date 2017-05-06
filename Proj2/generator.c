@@ -154,6 +154,8 @@ void wait_for_next_request() {
 	usleep(mlsecs * MILI_TO_MICRO);
 }
 
+// TODO call this function
+// TODO synchronize logs_file access ?
 void log_request_stats(int filedes, Request * req, const char * msg) {
 	// Save STDOUT descriptor and replace it with logs_file's
 	int stdout_save = dup(STDOUT_FILENO);

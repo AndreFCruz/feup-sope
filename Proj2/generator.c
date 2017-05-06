@@ -33,6 +33,14 @@ struct generator_t {
 	int REQUESTS_FIFO;
 	int REJECTED_FIFO;
 	int LOGS_FILE;
+
+	// Statistics
+	int male_requests;
+	int female_requests;
+	int male_rejections;
+	int female_rejections;
+	int male_discards;
+	int female_discards;
 };
 
 typedef struct generator_t generator_t;
@@ -40,8 +48,15 @@ typedef struct generator_t generator_t;
 // Methods for generator_t
 generator_t * new_generator_t(char * argv[]);
 void generator_open_fifos(generator_t * gen);
-void generator_create_LOGS_FILE(generator_t * gen);
+void generator_create_logs_file(generator_t * gen);
+void generator_close_filedes(generator_t * gen);
 void delete_generator_t();
+
+void generator_log_request(generator_t * gen, Request * req);
+void generator_log_reject(generator_t * gen, Request * req);
+void generator_log_discard(generator_t * gen, Request * req);
+
+void log_request_stats(int filedes, Request * req, const char * msg);
 
 // Threads' Functions
 void * requests_generator(void * arg);
@@ -78,7 +93,7 @@ int main(int argc, char * argv[]) {
 	generator_open_fifos(generator);
 
 	// Create LOGs file
-	generator_create_LOGS_FILE(generator);
+	generator_create_logs_file(generator);
 
 	// Initiate threads -- IN ORDER!!
 	// listen for rejected && generate requests
@@ -96,6 +111,9 @@ int main(int argc, char * argv[]) {
 	pthread_join(threads[0], NULL);
 	pthread_join(threads[1], NULL);
 
+	// Close opened FIFOs and files
+	generator_close_filedes(generator);
+
 	// Delete dinamically allocated memory
 	delete_generator_t(generator);
 
@@ -104,6 +122,14 @@ int main(int argc, char * argv[]) {
 
 generator_t * new_generator_t(char * argv[]) {
 	generator_t * gen = malloc(sizeof(generator_t));
+
+	// Initialize variables
+	gen->male_requests = 0;
+	gen->female_requests = 0;
+	gen->male_rejections = 0;
+	gen->female_rejections = 0;
+	gen->male_discards = 0;
+	gen->female_discards = 0;
 
 	long tmp;
 	if ( (tmp = strtol(argv[2], NULL, 10)) == 0 ) {
@@ -132,7 +158,7 @@ void generator_open_fifos(generator_t * gen) {
 	}
 }
 
-void generator_create_LOGS_FILE(generator_t * gen) {
+void generator_create_logs_file(generator_t * gen) {
 	char filename[MAX_FILENAME_LEN];
 	if (snprintf(filename, MAX_FILENAME_LEN, "%s%d", LOGS_FILE_PATH, getpid()) >= MAX_FILENAME_LEN) {
 		printf("Error in snprintf, file name too long\n");
@@ -144,8 +170,41 @@ void generator_create_LOGS_FILE(generator_t * gen) {
 	}
 }
 
+void generator_close_filedes(generator_t * gen) {
+	close(gen->REQUESTS_FIFO);
+	close(gen->REJECTED_FIFO);
+	close(gen->LOGS_FILE);
+}
+
 void delete_generator_t(generator_t * gen) {
 	free(gen);
+}
+
+void generator_log_request(generator_t * gen, Request * req) {
+	if (request_is_male(req))
+		(gen->male_requests)++;
+	else
+		(gen->female_requests)++;
+
+	log_request_stats(gen->LOGS_FILE, req, MSG_REQUEST);
+}
+
+void generator_log_reject(generator_t * gen, Request * req) {
+	if (request_is_male(req))
+		(gen->male_rejections)++;
+	else
+		(gen->female_rejections)++;
+
+	log_request_stats(gen->LOGS_FILE, req, MSG_REJECTED);
+}
+
+void generator_log_discard(generator_t * gen, Request * req) {
+	if (request_is_male(req))
+		(gen->male_discards)++;
+	else
+		(gen->female_discards)++;
+
+	log_request_stats(gen->LOGS_FILE, req, MSG_DISCARDED);
 }
 
 void wait_for_next_request() {
@@ -157,11 +216,8 @@ void wait_for_next_request() {
 // TODO call this function
 // TODO synchronize logs_file access ?
 void log_request_stats(int filedes, Request * req, const char * msg) {
-	// Save STDOUT descriptor and replace it with logs_file's
-	int stdout_save = dup(STDOUT_FILENO);
-	dup2(filedes, STDOUT_FILENO);
 
-	printf("%4d - %4d - %4d: %c - %4d - %s\n",
+	dprintf(filedes, "%4d - %4d - %4d: %c - %4d - %s\n",
 		000,						/* current time */ // TODO CHANGE PLACEHOLDER
 		getpid(),					/* process pid */
 		request_get_serial_no(req),	/* request's serial number */
@@ -169,8 +225,6 @@ void log_request_stats(int filedes, Request * req, const char * msg) {
 		request_get_duration(req),	/* request's duration */
 		msg);						/* message identifier */
 
-	// Restore STDOUT file descriptor
-	dup2(stdout_save, STDOUT_FILENO);
 }
 
 /**
@@ -186,6 +240,7 @@ void * requests_generator(void * arg)
 	for (i = 0; get_num_requests() < gen->MAX_REQUESTS; ++i) {
 
 		Request * new_req = new_request();
+		generator_log_request(gen, new_req);
 
 		// Write to fifo
 		write(gen->REQUESTS_FIFO, new_req, request_get_sizeof());
@@ -219,8 +274,12 @@ void * rejected_listener(void * arg)
 	while ( SIZEOF_REQUEST == read(gen->REJECTED_FIFO, tmp_request, SIZEOF_REQUEST) ) {
 		request_increment_rejections(tmp_request);
 
+		generator_log_reject(gen, tmp_request);
+
 		if (request_get_num_rejections(tmp_request) < MAX_REJECTIONS)
 			write(gen->REQUESTS_FIFO, tmp_request, SIZEOF_REQUEST);
+		else
+			generator_log_discard(gen, tmp_request);
 	}
 
 	delete_request(tmp_request);

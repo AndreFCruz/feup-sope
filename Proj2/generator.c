@@ -19,6 +19,10 @@
 #define MIN_REQUESTS_GAP	5
 #define MILI_TO_MICRO		1000
 
+#define MSG_REQUEST		"PEDIDO"
+#define MSG_REJECTED	"REJEITADO"
+#define MSG_DISCARDED	"DESCARTADO"
+
 // NOTE: Time units are in miliseconds
 
 // stores command line arguments and current state of generator
@@ -31,13 +35,18 @@ struct generator_t {
 	int LOGS_FILE;
 };
 
+typedef struct generator_t generator_t;
+
+// Methods for generator_t
+generator_t * new_generator_t(char * argv[]);
+void generator_open_fifos(generator_t * gen);
+void generator_create_LOGS_FILE(generator_t * gen);
+void delete_generator_t();
+
+// Threads' Functions
 void * requests_generator(void * arg);
 void * rejected_listener(void * arg);
 
-struct generator_t * new_generator_t(char * argv[]);
-void generator_open_fifos(struct generator_t * gen);
-void generator_create_LOGS_FILE(struct generator_t * gen);
-void delete_generator_t();
 
 int main(int argc, char * argv[]) {
 	if (argc != 3) {
@@ -63,7 +72,7 @@ int main(int argc, char * argv[]) {
 	}
 
 	// Create generator_t struct and fetch command line arguments
-	struct generator_t * generator = new_generator_t(argv);
+	generator_t * generator = new_generator_t(argv);
 
 	// Open FIFOs
 	generator_open_fifos(generator);
@@ -93,8 +102,8 @@ int main(int argc, char * argv[]) {
 	exit(0);
 }
 
-struct generator_t * new_generator_t(char * argv[]) {
-	struct generator_t * gen = malloc(sizeof(struct generator_t));
+generator_t * new_generator_t(char * argv[]) {
+	generator_t * gen = malloc(sizeof(generator_t));
 
 	long tmp;
 	if ( (tmp = strtol(argv[2], NULL, 10)) == 0 ) {
@@ -112,7 +121,7 @@ struct generator_t * new_generator_t(char * argv[]) {
 	return gen;
 }
 
-void generator_open_fifos(struct generator_t * gen) {
+void generator_open_fifos(generator_t * gen) {
 	if ( (gen->REQUESTS_FIFO = open(REQUESTS_FIFO_PATH, O_WRONLY)) == -1 ) {
 		perror("Failed to open REQUESTS_FIFO");
 		exit(1);
@@ -123,7 +132,7 @@ void generator_open_fifos(struct generator_t * gen) {
 	}
 }
 
-void generator_create_LOGS_FILE(struct generator_t * gen) {
+void generator_create_LOGS_FILE(generator_t * gen) {
 	char filename[MAX_FILENAME_LEN];
 	if (snprintf(filename, MAX_FILENAME_LEN, "%s%d", LOGS_FILE_PATH, getpid()) >= MAX_FILENAME_LEN) {
 		printf("Error in snprintf, file name too long\n");
@@ -135,7 +144,7 @@ void generator_create_LOGS_FILE(struct generator_t * gen) {
 	}
 }
 
-void delete_generator_t(struct generator_t * gen) {
+void delete_generator_t(generator_t * gen) {
 	free(gen);
 }
 
@@ -145,14 +154,31 @@ void wait_for_next_request() {
 	usleep(mlsecs * MILI_TO_MICRO);
 }
 
+void log_request_stats(int filedes, Request * req, const char * msg) {
+	// Save STDOUT descriptor and replace it with logs_file's
+	int stdout_save = dup(STDOUT_FILENO);
+	dup2(filedes, STDOUT_FILENO);
+
+	printf("%4d - %4d - %4d: %c - %4d - %s\n",
+		000,						/* current time */ // TODO CHANGE PLACEHOLDER
+		getpid(),					/* process pid */
+		request_get_serial_no(req),	/* request's serial number */
+		request_get_gender(req),	/* request's gender */
+		request_get_duration(req),	/* request's duration */
+		msg);						/* message identifier */
+
+	// Restore STDOUT file descriptor
+	dup2(stdout_save, STDOUT_FILENO);
+}
+
 /**
  * Thread to randomly generate requests and write them to the REQUESTS_FIFO
- * @arg struct generator_t * State of the generator
+ * @arg generator_t * State of the generator
  * @return NULL
  */
 void * requests_generator(void * arg)
 {
-	struct generator_t * gen = (struct generator_t *) arg;
+	generator_t * gen = (generator_t *) arg;
 
 	int i;
 	for (i = 0; get_num_requests() < gen->MAX_REQUESTS; ++i) {
@@ -178,14 +204,14 @@ void * requests_generator(void * arg)
 /**
  * Listens for rejected requests from the rejected_requests FIFO
  * will exit when fifo is closed for writing (by sauna process)
- * @arg struct generator_t * State of the generator
+ * @arg generator_t * State of the generator
  * @return NULL
  */ 
 void * rejected_listener(void * arg)
 {
 	// Read from REJECTED_FIFO -- HANG while nothing to be read
 	ssize_t SIZEOF_REQUEST = request_get_sizeof();
-	struct generator_t * gen = (struct generator_t *) arg;
+	generator_t * gen = (generator_t *) arg;
 
 	Request * tmp_request = malloc(SIZEOF_REQUEST);
 	while ( SIZEOF_REQUEST == read(gen->REJECTED_FIFO, tmp_request, SIZEOF_REQUEST) ) {

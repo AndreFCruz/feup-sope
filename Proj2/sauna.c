@@ -107,8 +107,12 @@ void * utilization_sim(void *arg){
 
 	int i=0;
 	sem_getvalue(&places_sem, &i);
+	
+	//Protecting 'gender' from being evaluated and altered simultaneally
+	pthread_mutex_lock(&mut);
 	if(i==0)
 		gender='';
+	pthread_mutex_unlock(&mut);
 
 	sem_post(&places_sem);
 

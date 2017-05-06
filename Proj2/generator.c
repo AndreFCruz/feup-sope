@@ -8,58 +8,16 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include "generator_t.h"
 #include "Request.h"
-#include "io.h"
-
-#define FILE_PERMISSIONS	0600
+#include "utils.h"
 
 #define MAX_REJECTIONS		3
-#define MAX_FILENAME_LEN	32
 
 #define MIN_REQUESTS_GAP	5
 #define MILI_TO_MICRO		1000
 
-#define MSG_REQUEST		"PEDIDO"
-#define MSG_REJECTED	"REJEITADO"
-#define MSG_DISCARDED	"DESCARTADO"
-
 // NOTE: Time units are in miliseconds
-
-// stores command line arguments and current state of generator
-struct generator_t {
-	int MAX_REQUESTS;
-
-	// File Descriptors
-	int REQUESTS_FIFO;
-	int REJECTED_FIFO;
-	int LOGS_FILE;
-
-	// Statistics
-	int male_requests;
-	int female_requests;
-	int male_rejections;
-	int female_rejections;
-	int male_discards;
-	int female_discards;
-
-	// Mutex for LOGs File
-	pthread_mutex_t mut_logs;
-};
-
-typedef struct generator_t generator_t;
-
-// Methods for generator_t
-generator_t * new_generator_t(char * argv[]);
-void generator_open_fifos(generator_t * gen);
-void generator_create_logs_file(generator_t * gen);
-void generator_close_filedes(generator_t * gen);
-void delete_generator_t();
-
-void generator_log_request(generator_t * gen, Request * req);
-void generator_log_reject(generator_t * gen, Request * req);
-void generator_log_discard(generator_t * gen, Request * req);
-
-void log_request_stats(generator_t * gen, Request * req, const char * msg);
 
 // Threads' Functions
 void * requests_generator(void * arg);
@@ -123,115 +81,10 @@ int main(int argc, char * argv[]) {
 	exit(0);
 }
 
-generator_t * new_generator_t(char * argv[]) {
-	generator_t * gen = malloc(sizeof(generator_t));
-
-	// Initialize variables
-	gen->male_requests = 0;
-	gen->female_requests = 0;
-	gen->male_rejections = 0;
-	gen->female_rejections = 0;
-	gen->male_discards = 0;
-	gen->female_discards = 0;
-
-	// Mutex to synchronize access to LOGS_FILE
-	pthread_mutex_init(&(gen->mut_logs), NULL);
-
-	long tmp;
-	if ( (tmp = strtol(argv[2], NULL, 10)) == 0 ) {
-		perror("Error converting third command line argument to int");
-		exit(1);
-	}
-	set_max_duration(tmp);
-
-	if ( (tmp = strtol(argv[1], NULL, 10)) == 0 ) {
-		perror("Error converting third command line argument to int");
-		exit(1);
-	}
-	gen->MAX_REQUESTS = tmp;
-
-	return gen;
-}
-
-void generator_open_fifos(generator_t * gen) {
-	if ( (gen->REQUESTS_FIFO = open(REQUESTS_FIFO_PATH, O_WRONLY)) == -1 ) {
-		perror("Failed to open REQUESTS_FIFO");
-		exit(1);
-	}
-	if ( (gen->REJECTED_FIFO = open(REJECTED_FIFO_PATH, O_RDONLY)) == -1 ) {
-		perror("Failed to open REQUESTS_FIFO");
-		exit(1);
-	}
-}
-
-void generator_create_logs_file(generator_t * gen) {
-	char filename[MAX_FILENAME_LEN];
-	if (snprintf(filename, MAX_FILENAME_LEN, "%s%d", LOGS_FILE_PATH, getpid()) >= MAX_FILENAME_LEN) {
-		printf("Error in snprintf, file name too long\n");
-		exit(1);
-	}
-	if ( (gen->LOGS_FILE = open(filename, O_RDWR | O_CREAT, FILE_PERMISSIONS)) == -1 ) {
-		perror("Failed to open/create logs file");
-		exit(1);
-	}
-}
-
-void generator_close_filedes(generator_t * gen) {
-	close(gen->REQUESTS_FIFO);
-	close(gen->REJECTED_FIFO);
-	close(gen->LOGS_FILE);
-}
-
-void delete_generator_t(generator_t * gen) {
-	free(gen);
-}
-
-void generator_log_request(generator_t * gen, Request * req) {
-	if (request_is_male(req))
-		(gen->male_requests)++;
-	else
-		(gen->female_requests)++;
-
-	log_request_stats(gen, req, MSG_REQUEST);
-}
-
-void generator_log_reject(generator_t * gen, Request * req) {
-	if (request_is_male(req))
-		(gen->male_rejections)++;
-	else
-		(gen->female_rejections)++;
-
-	log_request_stats(gen, req, MSG_REJECTED);
-}
-
-void generator_log_discard(generator_t * gen, Request * req) {
-	if (request_is_male(req))
-		(gen->male_discards)++;
-	else
-		(gen->female_discards)++;
-
-	log_request_stats(gen, req, MSG_DISCARDED);
-}
-
 void wait_for_next_request() {
 	int mlsecs = MIN_REQUESTS_GAP + rand() % get_max_duration();
 
 	usleep(mlsecs * MILI_TO_MICRO);
-}
-
-void log_request_stats(generator_t * gen, Request * req, const char * msg) {
-
-	pthread_mutex_lock( &(gen->mut_logs) );
-
-	dprintf(gen->LOGS_FILE, "%4d - %4d - %4d: %c - %4d - %s\n",
-		000,						/* current time */ // TODO CHANGE PLACEHOLDER
-		getpid(),					/* process pid */
-		request_get_serial_no(req),	/* request's serial number */
-		request_get_gender(req),	/* request's gender */
-		request_get_duration(req),	/* request's duration */
-		msg);						/* message identifier */
-
-	pthread_mutex_unlock( &(gen->mut_logs) );
 }
 
 /**

@@ -11,8 +11,13 @@
 #include "Request.h"
 #include "io.h"
 
+#define FILE_PERMISSIONS	0600
+
 #define MAX_REJECTIONS		3
 #define MAX_FILENAME_LEN	32
+
+#define MIN_REQUESTS_GAP	5
+#define MILI_TO_MICRO		1000
 
 // NOTE: Time units are in miliseconds
 
@@ -21,13 +26,18 @@ struct generator_t {
 	int MAX_REQUESTS;
 
 	// File Descriptors
-	int requests_fifo;
-	int rejected_fifo;
-	int logs_file;
+	int REQUESTS_FIFO;
+	int REJECTED_FIFO;
+	int LOGS_FILE;
 };
 
 void * requests_generator(void * arg);
 void * rejected_listener(void * arg);
+
+struct generator_t * new_generator_t(char * argv[]);
+void generator_open_fifos(struct generator_t * gen);
+void generator_create_LOGS_FILE(struct generator_t * gen);
+void delete_generator_t();
 
 int main(int argc, char * argv[]) {
 	if (argc != 3) {
@@ -38,10 +48,54 @@ int main(int argc, char * argv[]) {
 	// Seed random function
 	srand(time(NULL));
 
-	// Install signal handlers (?)
+	// Create FIFOs if not already created
+	if (mkfifo(REQUESTS_FIFO_PATH, FILE_PERMISSIONS) < 0) {
+		if (errno != EEXIST) {
+			perror("Error creating FIFO");
+			exit(1);
+		}
+	}
+	if (mkfifo(REJECTED_FIFO_PATH, FILE_PERMISSIONS) < 0) {
+		if (errno != EEXIST) {
+			perror("Error creating FIFO");
+			exit(1);
+		}
+	}
 
 	// Create generator_t struct and fetch command line arguments
-	struct generator_t generator;
+	struct generator_t * generator = new_generator_t(argv);
+
+	// Open FIFOs
+	generator_open_fifos(generator);
+
+	// Create LOGs file
+	generator_create_LOGS_FILE(generator);
+
+	// Initiate threads -- IN ORDER!!
+	// listen for rejected && generate requests
+	pthread_t threads[2];
+	if ( pthread_create(&threads[0], NULL, rejected_listener, generator) != 0 ) {
+		printf("Error creating thread rejected_listener");
+		exit(1);
+	}
+	if ( pthread_create(&threads[1], NULL, requests_generator, generator) != 0 ) {
+		printf("Error creating thread rejected_listener");
+		exit(1);
+	}
+
+	// Join with threads
+	pthread_join(threads[0], NULL);
+	pthread_join(threads[1], NULL);
+
+	// Delete dinamically allocated memory
+	delete_generator_t(generator);
+
+	exit(0);
+}
+
+struct generator_t * new_generator_t(char * argv[]) {
+	struct generator_t * gen = malloc(sizeof(struct generator_t));
+
 	long tmp;
 	if ( (tmp = strtol(argv[2], NULL, 10)) == 0 ) {
 		perror("Error converting third command line argument to int");
@@ -53,72 +107,62 @@ int main(int argc, char * argv[]) {
 		perror("Error converting third command line argument to int");
 		exit(1);
 	}
-	generator.MAX_REQUESTS = tmp;
+	gen->MAX_REQUESTS = tmp;
 
+	return gen;
+}
 
-	// Create FIFOs if not already created
-	if (mkfifo(REQUESTS_FIFO_PATH, 0666) < 0) {
-		if (errno != EEXIST) {
-			perror("Error creating FIFO");
-			exit(1);
-		}
-	}
-	if (mkfifo(REJECTED_FIFO_PATH, 0666) < 0) {
-		if (errno != EEXIST) {
-			perror("Error creating FIFO");
-			exit(1);
-		}
-	}
-
-	// Open FIFOs
-	if ( (generator.requests_fifo = open(REQUESTS_FIFO_PATH, O_WRONLY)) == -1 ) {
-		perror("Failed to open requests_fifo");
+void generator_open_fifos(struct generator_t * gen) {
+	if ( (gen->REQUESTS_FIFO = open(REQUESTS_FIFO_PATH, O_WRONLY)) == -1 ) {
+		perror("Failed to open REQUESTS_FIFO");
 		exit(1);
 	}
-	if ( (generator.rejected_fifo = open(REJECTED_FIFO_PATH, O_RDONLY)) == -1 ) {
-		perror("Failed to open requests_fifo");
+	if ( (gen->REJECTED_FIFO = open(REJECTED_FIFO_PATH, O_RDONLY)) == -1 ) {
+		perror("Failed to open REQUESTS_FIFO");
 		exit(1);
 	}
+}
 
-	// Create LOGs file
+void generator_create_LOGS_FILE(struct generator_t * gen) {
 	char filename[MAX_FILENAME_LEN];
 	if (snprintf(filename, MAX_FILENAME_LEN, "%s%d", LOGS_FILE_PATH, getpid()) >= MAX_FILENAME_LEN) {
 		printf("Error in snprintf, file name too long\n");
 		exit(1);
 	}
-	if ( (generator.logs_file = open(filename, O_RDWR | O_CREAT, 0666)) == -1 ) {
+	if ( (gen->LOGS_FILE = open(filename, O_RDWR | O_CREAT, FILE_PERMISSIONS)) == -1 ) {
 		perror("Failed to open/create logs file");
 		exit(1);
 	}
+}
 
-	// Initiate threads
-	// generate requests && listen for rejected
+void delete_generator_t(struct generator_t * gen) {
+	free(gen);
+}
 
-	// start rejected_listener first!!
+void wait_for_next_request() {
+	int mlsecs = MIN_REQUESTS_GAP + rand() % get_max_duration();
 
-
-	exit(0);
+	usleep(mlsecs * MILI_TO_MICRO);
 }
 
 /**
- * Thread to randomly generate requests and write them to the requests_fifo
+ * Thread to randomly generate requests and write them to the REQUESTS_FIFO
  * @arg struct generator_t * State of the generator
  * @return NULL
  */
 void * requests_generator(void * arg)
 {
-	struct generator_t * generator = (struct generator_t *) arg;
+	struct generator_t * gen = (struct generator_t *) arg;
 
 	int i;
-	for (i = 0; get_num_requests() < generator->MAX_REQUESTS; ++i) {
+	for (i = 0; get_num_requests() < gen->MAX_REQUESTS; ++i) {
 
 		Request * new_req = new_request();
 
-		// Acquire lock on requests_fifo
-		// TODO
-
 		// Write to fifo
-		write(generator->requests_fifo, new_req, request_get_sizeof());
+		write(gen->REQUESTS_FIFO, new_req, request_get_sizeof());
+
+		wait_for_next_request();
 
 		// Check for congruency
 		if (i != get_num_requests()) {
@@ -131,10 +175,27 @@ void * requests_generator(void * arg)
 	pthread_exit(0);
 }
 
-
+/**
+ * Listens for rejected requests from the rejected_requests FIFO
+ * will exit when fifo is closed for writing (by sauna process)
+ * @arg struct generator_t * State of the generator
+ * @return NULL
+ */ 
 void * rejected_listener(void * arg)
 {
-	// Read from rejected_fifo and HANG while nothing to be read
+	// Read from REJECTED_FIFO -- HANG while nothing to be read
+	ssize_t SIZEOF_REQUEST = request_get_sizeof();
+	struct generator_t * gen = (struct generator_t *) arg;
+
+	Request * tmp_request = malloc(SIZEOF_REQUEST);
+	while ( SIZEOF_REQUEST == read(gen->REJECTED_FIFO, tmp_request, SIZEOF_REQUEST) ) {
+		request_increment_rejections(tmp_request);
+
+		if (request_get_num_rejections(tmp_request) < MAX_REJECTIONS)
+			write(gen->REQUESTS_FIFO, tmp_request, SIZEOF_REQUEST);
+	}
+
+	delete_request(tmp_request);
 
 	pthread_exit(0);
 }

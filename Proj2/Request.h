@@ -10,6 +10,8 @@ int get_num_requests();
 
 int set_max_duration(int new_max);
 
+int get_max_duration();
+
 // Methods for Request Class
 Request * new_request();
 

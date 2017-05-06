@@ -24,6 +24,9 @@ generator_t * new_generator_t(char * argv[]) {
 	gen->male_discards = 0;
 	gen->female_discards = 0;
 
+	// Set start time
+	gen->START_TIME = get_current_time();
+
 	// Mutex to synchronize access to LOGS_FILE
 	pthread_mutex_init(&(gen->mut_logs), NULL);
 

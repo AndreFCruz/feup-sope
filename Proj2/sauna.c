@@ -16,12 +16,8 @@
 #define SHARED 0
 #define MAX_THREADS 1000
 
-#define NANO_TO_MILISECONDS 0.000001
-#define SECONDS_TO_MILISECONDS 1000
-#define MILI_TO_MICRO		1000
-
-#define MALE 0
-#define FEMALE 1
+#define MALE 0		// what's the use?
+#define FEMALE 1	//
 
 int no_places = 0;
 char gender;
@@ -104,13 +100,14 @@ void * utilization_sim(void *arg){
 
 	print_register(&req,tip);
 
-	int i=0;
-	sem_getvalue(&places_sem, &i);
+	int i = 0; // TODO
+	sem_getvalue(&places_sem, &i); // WILL NEVER REACH THIS WITH VALUE 0
+	// there's no reason for doing this inside critical section
 	
 	//Protecting 'gender' from being evaluated and altered simultaneally
 	pthread_mutex_lock(&mut);
-	if(i==0)
-		gender='';
+	if(i == 0)
+		gender = 0;
 	pthread_mutex_unlock(&mut);
 
 	sem_post(&places_sem);
@@ -158,7 +155,7 @@ void fileHandler(){
 void get_clock(double *time){
 	struct timespec ts_init;
 	timespec_get(&ts_init, TIME_UTC);
-	*time=ts_init.tv_nsec * NANO_TO_MILISECONDS;
+	*time=ts_init.tv_nsec / MILI_TO_NANO;
 }
 
 void * mainThread(void * arg){

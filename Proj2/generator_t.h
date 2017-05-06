@@ -23,6 +23,8 @@ struct generator_t {
 
 	// Mutex for LOGs File
 	pthread_mutex_t mut_logs;
+
+	unsigned long long START_TIME; // in miliseconds
 };
 
 typedef struct generator_t generator_t;

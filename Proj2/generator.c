@@ -41,6 +41,9 @@ struct generator_t {
 	int female_rejections;
 	int male_discards;
 	int female_discards;
+
+	// Mutex for LOGs File
+	pthread_mutex_t mut_logs;
 };
 
 typedef struct generator_t generator_t;
@@ -56,7 +59,7 @@ void generator_log_request(generator_t * gen, Request * req);
 void generator_log_reject(generator_t * gen, Request * req);
 void generator_log_discard(generator_t * gen, Request * req);
 
-void log_request_stats(int filedes, Request * req, const char * msg);
+void log_request_stats(generator_t * gen, Request * req, const char * msg);
 
 // Threads' Functions
 void * requests_generator(void * arg);
@@ -131,6 +134,9 @@ generator_t * new_generator_t(char * argv[]) {
 	gen->male_discards = 0;
 	gen->female_discards = 0;
 
+	// Mutex to synchronize access to LOGS_FILE
+	pthread_mutex_init(&(gen->mut_logs), NULL);
+
 	long tmp;
 	if ( (tmp = strtol(argv[2], NULL, 10)) == 0 ) {
 		perror("Error converting third command line argument to int");
@@ -186,7 +192,7 @@ void generator_log_request(generator_t * gen, Request * req) {
 	else
 		(gen->female_requests)++;
 
-	log_request_stats(gen->LOGS_FILE, req, MSG_REQUEST);
+	log_request_stats(gen, req, MSG_REQUEST);
 }
 
 void generator_log_reject(generator_t * gen, Request * req) {
@@ -195,7 +201,7 @@ void generator_log_reject(generator_t * gen, Request * req) {
 	else
 		(gen->female_rejections)++;
 
-	log_request_stats(gen->LOGS_FILE, req, MSG_REJECTED);
+	log_request_stats(gen, req, MSG_REJECTED);
 }
 
 void generator_log_discard(generator_t * gen, Request * req) {
@@ -204,7 +210,7 @@ void generator_log_discard(generator_t * gen, Request * req) {
 	else
 		(gen->female_discards)++;
 
-	log_request_stats(gen->LOGS_FILE, req, MSG_DISCARDED);
+	log_request_stats(gen, req, MSG_DISCARDED);
 }
 
 void wait_for_next_request() {
@@ -213,11 +219,11 @@ void wait_for_next_request() {
 	usleep(mlsecs * MILI_TO_MICRO);
 }
 
-// TODO call this function
-// TODO synchronize logs_file access ?
-void log_request_stats(int filedes, Request * req, const char * msg) {
+void log_request_stats(generator_t * gen, Request * req, const char * msg) {
 
-	dprintf(filedes, "%4d - %4d - %4d: %c - %4d - %s\n",
+	pthread_mutex_lock( &(gen->mut_logs) );
+
+	dprintf(gen->LOGS_FILE, "%4d - %4d - %4d: %c - %4d - %s\n",
 		000,						/* current time */ // TODO CHANGE PLACEHOLDER
 		getpid(),					/* process pid */
 		request_get_serial_no(req),	/* request's serial number */
@@ -225,6 +231,7 @@ void log_request_stats(int filedes, Request * req, const char * msg) {
 		request_get_duration(req),	/* request's duration */
 		msg);						/* message identifier */
 
+	pthread_mutex_unlock( &(gen->mut_logs) );
 }
 
 /**

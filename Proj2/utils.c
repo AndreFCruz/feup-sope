@@ -1,6 +1,10 @@
 #include "utils.h"
 #include <sys/time.h>
 
+#include <stdio.h>
+
+
+
 const char * REQUESTS_FIFO_PATH = "/tmp/entrada";
 const char * REJECTED_FIFO_PATH = "/tmp/rejeitados";
 const char * LOGS_FILE_PATH = "/tmp/ger.";

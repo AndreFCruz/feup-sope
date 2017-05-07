@@ -75,8 +75,6 @@ int main(int argc, char** argv){
 	sem_init(&out_sem, SHARED, 1);
 	sem_init(&places_sem, SHARED, 1);
 
-	pthread_mutex_init(&mut);
-
 	fileHandler();
 
 	pthread_t tid1;
@@ -93,12 +91,14 @@ int main(int argc, char** argv){
 void * utilization_sim(void *arg){
 	//Prevent that more than one request get served at a time
 	sem_wait(&places_sem);
-	Request req = * (Request *) arg;
+	ssize_t SIZEOF_REQUEST = request_get_sizeof();
+	Request * req = malloc(SIZEOF_REQUEST);
+	req = (Request *) arg;
 	char* tip = "SERVED";
 	
-	usleep(request_get_duration(&req) * MILI_TO_MICRO);
+	usleep(request_get_duration(req) * MILI_TO_MICRO);
 
-	print_register(&req,tip);
+	print_register(req,tip);
 
 	int i = 0; // TODO
 	sem_getvalue(&places_sem, &i); // WILL NEVER REACH THIS WITH VALUE 0
@@ -111,7 +111,7 @@ void * utilization_sim(void *arg){
 	pthread_mutex_unlock(&mut);
 
 	sem_post(&places_sem);
-
+	free(req);
 	return NULL;
 }
 
@@ -159,32 +159,34 @@ void get_clock(double *time){
 }
 
 void * mainThread(void * arg){
-	Request req;
+	ssize_t SIZEOF_REQUEST = request_get_sizeof();
+	Request * req = malloc(SIZEOF_REQUEST);
+	req = (Request *) arg;
 	pthread_t threads[MAX_THREADS];
 	int i = 0;
-	while (read(in_fifo, &req, sizeof(Request))>0){
+	while (read(in_fifo, req, sizeof(SIZEOF_REQUEST))>0){
 		char* tip="RECEIVED";
 
-		print_register(&req,tip);
+		print_register(req,tip);
 
 		//Process one request at a time, so that 'gender' doen't get corrupted
 		pthread_mutex_lock(&mut);
 		
-		if (request_get_gender(&req)==gender) {
-			pthread_create(&threads[i], NULL, utilization_sim, (void *) &req);
+		if (request_get_gender(req)==gender) {
+			pthread_create(&threads[i], NULL, utilization_sim, (void *) req);
 			
 			i++;
 		}
 		else {
-			if (gender == '') {
-				gender=request_get_gender(&req);
-				pthread_create(&threads[i], NULL, utilization_sim, (void *) &req);
+			if (gender == '*') {
+				gender=request_get_gender(req);
+				pthread_create(&threads[i], NULL, utilization_sim, (void *) req);
 
 				i++;
 			}
 			else {
 				char* tip="REJECTED";
-				print_register(&req,tip);
+				print_register(req,tip);
 			}
 		}
 
@@ -195,6 +197,8 @@ void * mainThread(void * arg){
 	for(j = 0; j < i; j++){
 		pthread_join(threads[j], NULL);
 	}
+
+	free(req);
 
 	return NULL;
 }

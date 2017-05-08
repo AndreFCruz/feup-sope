@@ -11,6 +11,8 @@
 #define MSG_REQUEST		"PEDIDO"
 #define MSG_REJECTED	"REJEITADO"
 #define MSG_DISCARDED	"DESCARTADO"
+#define MSG_RECEIVED	"RECEIVED"
+#define MSG_SERVED		"SERVED"
 
 extern const char * REQUESTS_FIFO_PATH;
 extern const char * REJECTED_FIFO_PATH;

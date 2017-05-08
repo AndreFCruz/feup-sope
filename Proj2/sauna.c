@@ -92,13 +92,12 @@ void * utilization_sim(void *arg){
 	ssize_t SIZEOF_REQUEST = request_get_sizeof();
 	Request * req = malloc(SIZEOF_REQUEST);
 	req = (Request *) arg;
-	char* tip = "SERVED";
 
 	served[(int) request_get_gender(req)%2]++;
 	
 	usleep(request_get_duration(req) * MILI_TO_MICRO);
 
-	print_register(req,tip);
+	print_register(req, MSG_SERVED);
 
 	int i = 0; // TODO
 	sem_getvalue(&places_sem, &i); // WILL NEVER REACH THIS WITH VALUE 0
@@ -116,13 +115,13 @@ void * utilization_sim(void *arg){
 }
 
 void fileHandler(){
-	if (mkfifo(REQUESTS_FIFO_PATH, 0666) < 0) {
+	if (mkfifo(REQUESTS_FIFO_PATH, FILE_PERMISSIONS) < 0) {
 		if (errno != EEXIST) {
 			perror("Error creating FIFO");
 			exit(1);
 		}
 	}
-	if (mkfifo(REJECTED_FIFO_PATH, 0666) < 0) {
+	if (mkfifo(REJECTED_FIFO_PATH, FILE_PERMISSIONS) < 0) {
 		if (errno != EEXIST) {
 			perror("Error creating FIFO");
 			exit(1);
@@ -145,7 +144,7 @@ void fileHandler(){
 	char * filename=malloc(sizeof(char)*50);
 	snprintf(filename, 50, "/tmp/bal.%d", pid);
 
-	if((out_fd=open(filename, O_RDWR|O_CREAT, 0666)) == -1)
+	if((out_fd=open(filename, O_RDWR|O_CREAT, FILE_PERMISSIONS)) == -1)
 	{
 		printf("Can't open FIFO %s\n",filename);
 		exit(6);
@@ -158,36 +157,32 @@ void * mainThread(void * arg){
 	req = (Request *) arg;
 	pthread_t threads[MAX_THREADS];
 	int i = 0;
-	while (read(in_fifo, req, sizeof(SIZEOF_REQUEST))>0){
-		char* tip="RECEIVED";
+	while (read(in_fifo, req, sizeof(SIZEOF_REQUEST)) > 0){
 
-		print_register(req,tip);
+		print_register(req, MSG_RECEIVED);
 
-		//Process one request at a time, so that 'gender' doen't get corrupted
+		// Works because F == 70 && M == 77
+		received[((size_t) request_get_gender(req)) % 2]++;
+
+		// Lock global variable gender
 		pthread_mutex_lock(&gender_mut);
-		received[(int) request_get_gender(req)%2]++;
 
-		if (request_get_gender(req)==gender) {
-			pthread_mutex_unlock(&gender_mut);
-			pthread_create(&threads[i], NULL, utilization_sim, (void *) req);
-			
-			i++;
-		}
-		else {
-			if (gender == '*') {
-				pthread_mutex_unlock(&gender_mut);
-				gender=request_get_gender(req);
-				pthread_create(&threads[i], NULL, utilization_sim, (void *) req);
+		if (gender == '*')
+			gender = request_get_gender(req);
 
-				i++;
-			}
-			else {
-				rejected[(int) request_get_gender(req)%2]++;
-				pthread_mutex_unlock(&gender_mut);
-				char* tip="REJECTED";
-				print_register(req,tip);
-			}
+		// TODO check req
+		// pointer to ever changing variable
+		// array of requests to be freed in the end ?
+
+		if (request_get_gender(req) == gender) {
+			pthread_create(&threads[i++], NULL, utilization_sim, (void *) req);
+		} else {
+			rejected[((size_t) request_get_gender(req)) % 2]++;
+			// pthread_mutex_unlock(&gender_mut);
+			print_register(req, MSG_REJECTED);
 		}
+		
+		pthread_mutex_unlock(&gender_mut);
 	}
 
 	int j;
@@ -200,19 +195,19 @@ void * mainThread(void * arg){
 	return NULL;
 }
 
-void print_register(Request* req, const char* tip){
+void print_register(Request* req, const char * msg){
 	pthread_mutex_lock( &logs_mut );
 
 	unsigned long long time_elapsed = get_current_time() - time_init;
 
-	dprintf(out_fd, "%4llu - %4d - %4lu - %4d: %c - %4d - %s\n",
+	dprintf(out_fd, "%4llu - %4d - %4d - %4d: %c - %4d - %s\n",
 		time_elapsed,				/* current time instance in miliseconds */
 		pid,						/* process pid */
-		pthread_self(),				/* thread tid */
+		(int) pthread_self(),		/* thread tid */
 		request_get_serial_no(req),	/* request's serial number */
 		request_get_gender(req),	/* request's gender */
 		request_get_duration(req),	/* request's duration */
-		tip);						/* message identifier */
+		msg);						/* message identifier */
 
 	pthread_mutex_unlock( &logs_mut );
 }

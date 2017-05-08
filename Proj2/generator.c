@@ -23,6 +23,9 @@
 void * requests_generator(void * arg);
 void * rejected_listener(void * arg);
 
+pthread_mutex_t reject_mut = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t request_mut = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t discard_mut = PTHREAD_MUTEX_INITIALIZER;
 
 int main(int argc, char * argv[]) {
 	if (argc != 3) {
@@ -107,7 +110,10 @@ void * requests_generator(void * arg)
 	for (i = 0; get_num_requests() < gen->MAX_REQUESTS; ++i) {
 
 		Request * new_req = new_request();
+
+		pthread_mutex_lock( &request_mut );
 		generator_log_request(gen, new_req);
+		pthread_mutex_unlock( &request_mut );
 
 		// Write to fifo
 		write(gen->REQUESTS_FIFO, new_req, request_get_sizeof());
@@ -154,12 +160,17 @@ void * rejected_listener(void * arg)
 		}
 
 		request_increment_rejections(tmp_request);
+
+		pthread_mutex_lock( &reject_mut );
 		generator_log_reject(gen, tmp_request);
+		pthread_mutex_unlock( &reject_mut );
 
 		if (request_get_num_rejections(tmp_request) < MAX_REJECTIONS)
 			write(gen->REQUESTS_FIFO, tmp_request, SIZEOF_REQUEST);
 		else {
+			pthread_mutex_lock( &discard_mut );
 			generator_log_discard(gen, tmp_request);
+			pthread_mutex_unlock( &discard_mut );
 			requests_processed++;
 		}
 

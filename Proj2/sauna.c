@@ -30,7 +30,8 @@ int rejected[2];
 
 sem_t places_sem;
 
-pthread_mutex_t logs_mut=PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t served_mut = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t logs_mut = PTHREAD_MUTEX_INITIALIZER;
 
 /**
 * Prints a request to the register file
@@ -95,8 +96,10 @@ int main(int argc, char** argv){
 void * request_handler(void *arg){
 	Request * req = (Request *) arg;
 
+	pthread_mutex_lock( &served_mut );
 	served[((size_t) request_get_gender(req)) % 2]++;
-	
+	pthread_mutex_unlock( &served_mut );
+
 	usleep(request_get_duration(req) * MILI_TO_MICRO);
 
 	print_register(req, MSG_SERVED);

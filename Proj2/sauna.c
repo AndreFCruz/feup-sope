@@ -46,7 +46,7 @@ void get_clock(double *time);
 /**
 * Simulates the steam room utilization
 */
-void * utilization_sim(void *arg);
+void * request_handler(void *arg);
 
 /**
  * Simulates the reception and processing of the requests
@@ -78,6 +78,12 @@ int main(int argc, char** argv){
 	pthread_t tid1;
 	pthread_create(&tid1, NULL, mainThread, NULL);
 
+	// Wait for mainThread to terminate
+	pthread_join(tid1, NULL);
+
+	// Print Statistics
+	//TODO
+
 	//Closing files and deleting created FIFO
 	close(in_fifo);
 	close(out_fifo);
@@ -86,14 +92,13 @@ int main(int argc, char** argv){
 	exit(0);
 }
 
-void * utilization_sim(void *arg){
-	//Prevent that more than one request get served at a time
-	sem_wait(&places_sem);
-	ssize_t SIZEOF_REQUEST = request_get_sizeof();
-	Request * req = malloc(SIZEOF_REQUEST);
-	req = (Request *) arg;
+void * request_handler(void *arg){
+	// Prevent sauna overcrowding
 
-	served[(int) request_get_gender(req)%2]++;
+	sem_wait(&places_sem);
+	Request * req = (Request *) arg;
+
+	served[((size_t) request_get_gender(req)) % 2]++;
 	
 	usleep(request_get_duration(req) * MILI_TO_MICRO);
 
@@ -105,13 +110,13 @@ void * utilization_sim(void *arg){
 	
 	//Protecting 'gender' from being evaluated and altered simultaneally
 	pthread_mutex_lock(&gender_mut);
-	if(i == 0)
+	if(i == 0) // i == 0 is no seats empty
 		gender = '*';
 	pthread_mutex_unlock(&gender_mut);
 
 	sem_post(&places_sem);
-	free(req);
-	return NULL;
+
+	pthread_exit(req);
 }
 
 void fileHandler(){
@@ -149,11 +154,12 @@ void fileHandler(){
 
 void * mainThread(void * arg){
 	const ssize_t SIZEOF_REQUEST = request_get_sizeof();
-	Request * req = malloc(SIZEOF_REQUEST);
-	req = (Request *) arg;
-	pthread_t threads[MAX_THREADS];
+	
 	int i = 0;
-	while (read(in_fifo, req, sizeof(SIZEOF_REQUEST)) > 0){
+	Request * req = malloc(SIZEOF_REQUEST);
+	pthread_t threads[MAX_THREADS];
+
+	while (read(in_fifo, req, SIZEOF_REQUEST) > 0){
 
 		print_register(req, MSG_RECEIVED);
 
@@ -169,9 +175,11 @@ void * mainThread(void * arg){
 		// TODO check req
 		// pointer to ever changing variable
 		// array of requests to be freed in the end ?
+		Request * tmp_req = malloc(SIZEOF_REQUEST);
+		memcpy(tmp_req, req, SIZEOF_REQUEST);
 
 		if (request_get_gender(req) == gender) {
-			pthread_create(&threads[i++], NULL, utilization_sim, (void *) req);
+			pthread_create(&threads[i++], NULL, request_handler, (void *) tmp_req);
 		} else {
 			rejected[((size_t) request_get_gender(req)) % 2]++;
 			print_register(req, MSG_REJECTED);
@@ -181,9 +189,12 @@ void * mainThread(void * arg){
 		pthread_mutex_unlock(&gender_mut);
 	}
 
-	int j;
+	int j; // Join with all created threads
 	for(j = 0; j < i; j++){
-		pthread_join(threads[j], NULL);
+		Request ** ptr = NULL;
+		pthread_join(threads[j], (void **) ptr);
+
+		free(*ptr);
 	}
 
 	free(req);

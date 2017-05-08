@@ -31,8 +31,6 @@ int set_max_duration(int new_max) {
 	return max_duration = new_max;
 }
 
-// TODO srand should be called in main -- seed for rand function
-
 // Randomly generate a new Sauna request. Increment global counter
 Request * new_request() {
 	Request * self = (Request *) malloc(sizeof(Request));

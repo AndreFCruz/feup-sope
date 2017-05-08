@@ -16,21 +16,20 @@
 #define SHARED 0
 #define MAX_THREADS 1000
 
-char gender;
 int out_fifo, in_fifo;
 int out_fd;
 int pid;
 unsigned long long time_init;
+
+const int MAX_SITS;
 
 //Final statistic info
 int received[2];
 int served[2];
 int rejected[2];
 
-sem_t out_sem;
 sem_t places_sem;
 
-pthread_mutex_t gender_mut=PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t logs_mut=PTHREAD_MUTEX_INITIALIZER;
 
 /**
@@ -65,15 +64,15 @@ int main(int argc, char** argv){
 		exit(1);
 	}
 
+	MAX_SITS = atoi(argv[1]);
+
 	//Getting the time of init
 	time_init=get_current_time();
 
 	//Semaphore intializer
-	sem_init(&out_sem, SHARED, 1);
-	sem_init(&places_sem, SHARED, atoi(argv[1]));
+	sem_init(&places_sem, SHARED, MAX_SITS);
 
 	fileHandler();
-	gender = '*';
 
 	pthread_t tid1;
 	pthread_create(&tid1, NULL, mainThread, NULL);
@@ -84,7 +83,8 @@ int main(int argc, char** argv){
 	// Print Statistics
 	//TODO
 
-	//Closing files and deleting created FIFO
+	// Closing files and deleting created FIFOs
+	// TODO Check termination clauses
 	close(in_fifo);
 	close(out_fifo);
 	unlink(REJECTED_FIFO_PATH);
@@ -93,9 +93,6 @@ int main(int argc, char** argv){
 }
 
 void * request_handler(void *arg){
-	// Prevent sauna overcrowding
-
-	sem_wait(&places_sem);
 	Request * req = (Request *) arg;
 
 	served[((size_t) request_get_gender(req)) % 2]++;
@@ -104,16 +101,7 @@ void * request_handler(void *arg){
 
 	print_register(req, MSG_SERVED);
 
-	int i = 0; // TODO
-	sem_getvalue(&places_sem, &i); // WILL NEVER REACH THIS WITH VALUE 0
-	// there's no reason for doing this inside critical section
-	
-	//Protecting 'gender' from being evaluated and altered simultaneally
-	pthread_mutex_lock(&gender_mut);
-	if(i == 0) // i == 0 is no seats empty
-		gender = '*';
-	pthread_mutex_unlock(&gender_mut);
-
+	// Signal an empty seat
 	sem_post(&places_sem);
 
 	pthread_exit(req);
@@ -155,38 +143,40 @@ void fileHandler(){
 void * mainThread(void * arg){
 	const ssize_t SIZEOF_REQUEST = request_get_sizeof();
 	
+	char gender = '*';
+
 	int i = 0;
 	Request * req = malloc(SIZEOF_REQUEST);
 	pthread_t threads[MAX_THREADS];
 
-	while (read(in_fifo, req, SIZEOF_REQUEST) > 0){
+	while (read(in_fifo, req, SIZEOF_REQUEST) > 0)
+	{
+		// Check if sauna has empty seats
+		sem_wait(&places_sem);
 
+		// Check if sauna is empty
+		int num = 0;
+		sem_getvalue(&places_sem, &num);
+		if(num == MAX_SITS)
+			gender = '*';
+
+		// Log Request receival
 		print_register(req, MSG_RECEIVED);
-
-		// Works because F == 70 && M == 77
 		received[((size_t) request_get_gender(req)) % 2]++;
-
-		// Lock global variable gender
-		pthread_mutex_lock(&gender_mut);
 
 		if (gender == '*')
 			gender = request_get_gender(req);
 
-		// TODO check req
-		// pointer to ever changing variable
-		// array of requests to be freed in the end ?
-		Request * tmp_req = malloc(SIZEOF_REQUEST);
-		memcpy(tmp_req, req, SIZEOF_REQUEST);
+		if (gender == request_get_gender(req)) { // Accepted
+			Request * tmp_req = malloc(SIZEOF_REQUEST);
+			memcpy(tmp_req, req, SIZEOF_REQUEST);
 
-		if (request_get_gender(req) == gender) {
 			pthread_create(&threads[i++], NULL, request_handler, (void *) tmp_req);
-		} else {
+		} else { // Rejected
 			rejected[((size_t) request_get_gender(req)) % 2]++;
 			print_register(req, MSG_REJECTED);
 			write(out_fifo, req, SIZEOF_REQUEST);
 		}
-		
-		pthread_mutex_unlock(&gender_mut);
 	}
 
 	int j; // Join with all created threads
@@ -194,7 +184,7 @@ void * mainThread(void * arg){
 		Request ** ptr = NULL;
 		pthread_join(threads[j], (void **) ptr);
 
-		free(*ptr);
+		free(*ptr); // free previously allocated memory
 	}
 
 	free(req);

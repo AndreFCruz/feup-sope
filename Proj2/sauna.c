@@ -73,7 +73,7 @@ int main(int argc, char** argv){
 	sem_init(&places_sem, SHARED, atoi(argv[1]));
 
 	fileHandler();
-	gender='*';
+	gender = '*';
 
 	pthread_t tid1;
 	pthread_create(&tid1, NULL, mainThread, NULL);
@@ -128,31 +128,27 @@ void fileHandler(){
 		}
 	}
 
-	if ((in_fifo=open(REQUESTS_FIFO_PATH,O_RDONLY)) ==-1)
-	{
-		printf("Can't open FIFO REQUESTS_FIFO_PATH\n");
+	if ((in_fifo=open(REQUESTS_FIFO_PATH,O_RDONLY)) == -1) {
+		perror("Can't open FIFO REQUESTS_FIFO_PATH\n");
 		exit(5);
 	}
 
-	if ((out_fifo=open(REJECTED_FIFO_PATH,O_WRONLY)) ==-1)
-	{
-		printf("Can't open FIFO FIFO_REJECTED\n");
+	if ((out_fifo=open(REJECTED_FIFO_PATH,O_WRONLY)) == -1) {
+		perror("Can't open FIFO FIFO_REJECTED\n");
 		exit(4);
 	}
 
-	pid = getpid();
-	char * filename=malloc(sizeof(char)*50);
-	snprintf(filename, 50, "/tmp/bal.%d", pid);
+	char filename[MAX_FILENAME_LEN];
+	snprintf(filename, MAX_FILENAME_LEN, "/tmp/bal.%d", (int) getpid());
 
-	if((out_fd=open(filename, O_RDWR|O_CREAT, FILE_PERMISSIONS)) == -1)
-	{
-		printf("Can't open FIFO %s\n",filename);
+	if((out_fd=open(filename, O_RDWR|O_CREAT, FILE_PERMISSIONS)) == -1) {
+		perror("Can't open LOGS FILE");
 		exit(6);
 	}
 }
 
 void * mainThread(void * arg){
-	ssize_t SIZEOF_REQUEST = request_get_sizeof();
+	const ssize_t SIZEOF_REQUEST = request_get_sizeof();
 	Request * req = malloc(SIZEOF_REQUEST);
 	req = (Request *) arg;
 	pthread_t threads[MAX_THREADS];
@@ -178,8 +174,8 @@ void * mainThread(void * arg){
 			pthread_create(&threads[i++], NULL, utilization_sim, (void *) req);
 		} else {
 			rejected[((size_t) request_get_gender(req)) % 2]++;
-			// pthread_mutex_unlock(&gender_mut);
 			print_register(req, MSG_REJECTED);
+			write(out_fifo, req, SIZEOF_REQUEST);
 		}
 		
 		pthread_mutex_unlock(&gender_mut);

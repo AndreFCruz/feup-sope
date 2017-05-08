@@ -39,5 +39,6 @@ void delete_generator_t();
 void generator_log_request(generator_t * gen, Request * req);
 void generator_log_reject(generator_t * gen, Request * req);
 void generator_log_discard(generator_t * gen, Request * req);
+void generator_print_statistics(generator_t * gen);
 
 #endif /* __GENERATOR_T_H */

@@ -123,7 +123,7 @@ void * requests_generator(void * arg)
 		delete_request(new_req);
 
 		// Check for congruency
-		if (i != (get_num_requests() + 1)) {
+		if (i != (get_num_requests() - 1)) {
 			printf("ERROR in requests_generator loop!\n");
 			printf("i: %d ; num_requests: %d", i, get_num_requests());
 			exit(1);

@@ -16,15 +16,13 @@
 #define SHARED 0
 #define MAX_THREADS 1000
 
-#define MALE 0		// what's the use?
-#define FEMALE 1	//
-
-int no_places = 0;
 char gender;
 int out_fifo, in_fifo;
 int out_fd;
 int pid;
-double time_init;
+unsigned long long time_init;
+
+//Final statistic info
 int received[2];
 int served[2];
 int rejected[2];
@@ -32,12 +30,13 @@ int rejected[2];
 sem_t out_sem;
 sem_t places_sem;
 
-pthread_mutex_t mut=PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t gender_mut=PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t logs_mut=PTHREAD_MUTEX_INITIALIZER;
 
 /**
 * Prints a request to the register file
 */
-void print_register(Request* req, char* tip);
+void print_register(Request* req, const char* tip);
 
 /**
 * Gets actual clock miliseconds
@@ -66,16 +65,15 @@ int main(int argc, char** argv){
 		exit(1);
 	}
 
-	//Storing the main args
-	no_places=atoi(argv[1]);
-
-	get_clock(&time_init);
+	//Getting the time of init
+	time_init=get_current_time();
 
 	//Semaphore intializer
 	sem_init(&out_sem, SHARED, 1);
-	sem_init(&places_sem, SHARED, 1);
+	sem_init(&places_sem, SHARED, atoi(argv[1]));
 
 	fileHandler();
+	gender='*';
 
 	pthread_t tid1;
 	pthread_create(&tid1, NULL, mainThread, NULL);
@@ -95,6 +93,8 @@ void * utilization_sim(void *arg){
 	Request * req = malloc(SIZEOF_REQUEST);
 	req = (Request *) arg;
 	char* tip = "SERVED";
+
+	served[(int) request_get_gender(req)%2]++;
 	
 	usleep(request_get_duration(req) * MILI_TO_MICRO);
 
@@ -105,10 +105,10 @@ void * utilization_sim(void *arg){
 	// there's no reason for doing this inside critical section
 	
 	//Protecting 'gender' from being evaluated and altered simultaneally
-	pthread_mutex_lock(&mut);
+	pthread_mutex_lock(&gender_mut);
 	if(i == 0)
-		gender = 0;
-	pthread_mutex_unlock(&mut);
+		gender = '*';
+	pthread_mutex_unlock(&gender_mut);
 
 	sem_post(&places_sem);
 	free(req);
@@ -152,12 +152,6 @@ void fileHandler(){
 	}
 }
 
-void get_clock(double *time){
-	struct timespec ts_init;
-	timespec_get(&ts_init, TIME_UTC);
-	*time=ts_init.tv_nsec / MILI_TO_NANO;
-}
-
 void * mainThread(void * arg){
 	ssize_t SIZEOF_REQUEST = request_get_sizeof();
 	Request * req = malloc(SIZEOF_REQUEST);
@@ -170,27 +164,30 @@ void * mainThread(void * arg){
 		print_register(req,tip);
 
 		//Process one request at a time, so that 'gender' doen't get corrupted
-		pthread_mutex_lock(&mut);
-		
+		pthread_mutex_lock(&gender_mut);
+		received[(int) request_get_gender(req)%2]++;
+
 		if (request_get_gender(req)==gender) {
+			pthread_mutex_unlock(&gender_mut);
 			pthread_create(&threads[i], NULL, utilization_sim, (void *) req);
 			
 			i++;
 		}
 		else {
 			if (gender == '*') {
+				pthread_mutex_unlock(&gender_mut);
 				gender=request_get_gender(req);
 				pthread_create(&threads[i], NULL, utilization_sim, (void *) req);
 
 				i++;
 			}
 			else {
+				rejected[(int) request_get_gender(req)%2]++;
+				pthread_mutex_unlock(&gender_mut);
 				char* tip="REJECTED";
 				print_register(req,tip);
 			}
 		}
-
-		pthread_mutex_unlock(&mut);
 	}
 
 	int j;
@@ -203,13 +200,19 @@ void * mainThread(void * arg){
 	return NULL;
 }
 
-void print_register(Request* req, char* tip){
-	pthread_t tid = pthread_self();
-	double time_req;
-	get_clock(&time_req);
+void print_register(Request* req, const char* tip){
+	pthread_mutex_lock( &logs_mut );
 
-	//Prevent more than one writing at a time
-	sem_wait(&out_sem);
-	dprintf(out_fd, "%-5lf, %-5d, %-5lu, %-5d, %-2c, %-5d, %-10s\n", time_req-time_init, pid, tid, request_get_serial_no(req), request_get_gender(req), request_get_duration(req),  tip);
-	sem_post(&out_sem);
+	unsigned long long time_elapsed = get_current_time() - time_init;
+
+	dprintf(out_fd, "%4llu - %4d - %4lu - %4d: %c - %4d - %s\n",
+		time_elapsed,				/* current time instance in miliseconds */
+		pid,						/* process pid */
+		pthread_self(),				/* thread tid */
+		request_get_serial_no(req),	/* request's serial number */
+		request_get_gender(req),	/* request's gender */
+		request_get_duration(req),	/* request's duration */
+		tip);						/* message identifier */
+
+	pthread_mutex_unlock( &logs_mut );
 }

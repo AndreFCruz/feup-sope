@@ -38,11 +38,6 @@ pthread_mutex_t logs_mut=PTHREAD_MUTEX_INITIALIZER;
 void print_register(Request* req, const char* tip);
 
 /**
-* Gets actual clock miliseconds
-*/
-void get_clock(double *time);
-
-/**
 * Simulates the steam room utilization
 */
 void * request_handler(void *arg);
@@ -80,14 +75,15 @@ int main(int argc, char** argv){
 	// Wait for mainThread to terminate
 	pthread_join(tid1, NULL);
 
-	// Print Statistics
-	//TODO
+	//print_final_stats
 
 	// Closing files and deleting created FIFOs
 	// TODO Check termination clauses
 	close(in_fifo);
 	close(out_fifo);
 	unlink(REJECTED_FIFO_PATH);
+	sem_destroy(&out_sem);
+	sem_destroy(&places_sem);
 
 	exit(0);
 }
@@ -207,4 +203,23 @@ void print_register(Request* req, const char * msg){
 		msg);						/* message identifier */
 
 	pthread_mutex_unlock( &logs_mut );
+}
+
+void print_final_stats(){
+	printf("Number of received requests:\n");
+	printf("Male - %d\n", received[1]);
+	printf("Female - %d\n", received[0]);
+	printf("Total - %d\n", received[0]+received[1]);
+	
+	printf("Number of rejected requests:\n");
+	printf("Male - %d\n", rejected[1]);
+	printf("Female - %d\n", rejected[0]);
+	printf("Total - %d\n", rejected[0]+rejected[1]);
+	
+	printf("Number of served requests:\n");
+	printf("Male - %d\n", served[1]);
+	printf("Female - %d\n", served[0]);
+	printf("Total - %d\n", served[0]+served[1]);
+	
+	return;
 }

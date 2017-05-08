@@ -72,6 +72,9 @@ int main(int argc, char * argv[]) {
 	pthread_join(threads[0], NULL);
 	pthread_join(threads[1], NULL);
 
+	// Print execution statistics
+	generator_print_statistics(generator);
+
 	// Close opened FIFOs and files
 	generator_close_filedes(generator);
 

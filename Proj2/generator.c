@@ -78,6 +78,10 @@ int main(int argc, char * argv[]) {
 	// Close opened FIFOs and files
 	generator_close_filedes(generator);
 
+	// Delte FIFOs
+	unlink(REJECTED_FIFO_PATH);
+	unlink(REQUESTS_FIFO_PATH);
+
 	// Delete dinamically allocated memory
 	delete_generator_t(generator);
 
@@ -136,18 +140,35 @@ void * rejected_listener(void * arg)
 	generator_t * gen = (generator_t *) arg;
 
 	Request * tmp_request = malloc(SIZEOF_REQUEST);
-	while ( SIZEOF_REQUEST == read(gen->REJECTED_FIFO, tmp_request, SIZEOF_REQUEST) ) {
-		request_increment_rejections(tmp_request);
+	int bytes_read;
 
+	int requests_processed = 0;
+
+	while ( (bytes_read = read(gen->REJECTED_FIFO, tmp_request, SIZEOF_REQUEST)) > 0 ) {
+		if (1 == bytes_read) {
+			requests_processed++;
+			continue;
+		} else if (SIZEOF_REQUEST != bytes_read) {
+			printf("ERROR: Listener read %d bytes.", bytes_read);
+			exit(1);
+		}
+
+		request_increment_rejections(tmp_request);
 		generator_log_reject(gen, tmp_request);
 
 		if (request_get_num_rejections(tmp_request) < MAX_REJECTIONS)
 			write(gen->REQUESTS_FIFO, tmp_request, SIZEOF_REQUEST);
-		else
+		else {
 			generator_log_discard(gen, tmp_request);
+			requests_processed++;
+		}
+
+		// Check if all requests were processed
+		if (requests_processed == gen->MAX_REQUESTS)
+			break;
 	}
 
-	delete_request(tmp_request);
+	free(tmp_request);
 
 	pthread_exit(0);
 }

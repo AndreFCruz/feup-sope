@@ -21,7 +21,7 @@ int out_fd;
 int pid;
 unsigned long long time_init;
 
-const int MAX_SITS;
+int MAX_SITS;
 
 //Final statistic info
 int received[2];
@@ -52,6 +52,11 @@ void * mainThread(void * arg);
 */
 void fileHandler();
 
+/**
+ * Prints overall statistics
+ */
+void print_final_stats();
+
 int main(int argc, char** argv){
 	if(argc!=2)
 	{
@@ -75,14 +80,13 @@ int main(int argc, char** argv){
 	// Wait for mainThread to terminate
 	pthread_join(tid1, NULL);
 
-	//print_final_stats
+	// Print overall statistics
+	print_final_stats();
 
 	// Closing files and deleting created FIFOs
 	// TODO Check termination clauses
 	close(in_fifo);
 	close(out_fifo);
-	unlink(REJECTED_FIFO_PATH);
-	sem_destroy(&out_sem);
 	sem_destroy(&places_sem);
 
 	exit(0);
@@ -164,6 +168,8 @@ void * mainThread(void * arg){
 			gender = request_get_gender(req);
 
 		if (gender == request_get_gender(req)) { // Accepted
+			write (out_fifo, 0, 1); // Signal request accepted
+
 			Request * tmp_req = malloc(SIZEOF_REQUEST);
 			memcpy(tmp_req, req, SIZEOF_REQUEST);
 
@@ -205,7 +211,7 @@ void print_register(Request* req, const char * msg){
 	pthread_mutex_unlock( &logs_mut );
 }
 
-void print_final_stats(){
+void print_final_stats() {
 	printf("Number of received requests:\n");
 	printf("Male - %d\n", received[1]);
 	printf("Female - %d\n", received[0]);

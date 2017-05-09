@@ -7,8 +7,9 @@ CC = gcc
 PROG = generator
 SRCS = generator.c generator_t.c Request.c utils.c
 
+LDFLAGS=-pthread
 CFLAGS = -Wall
 
 
 $(PROG) : $(SRCS)
-	$(CC) $(CFLAGS) $(SRCS) -o $(PROG)
+	$(CC) $(CFLAGS) $(SRCS) $(LDFLAGS) -o $(PROG)

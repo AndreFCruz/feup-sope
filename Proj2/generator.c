@@ -23,6 +23,9 @@
 void * requests_generator(void * arg);
 void * rejected_listener(void * arg);
 
+pthread_mutex_t reject_mut = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t request_mut = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t discard_mut = PTHREAD_MUTEX_INITIALIZER;
 
 int main(int argc, char * argv[]) {
 	if (argc != 3) {
@@ -72,8 +75,15 @@ int main(int argc, char * argv[]) {
 	pthread_join(threads[0], NULL);
 	pthread_join(threads[1], NULL);
 
+	// Print execution statistics
+	generator_print_statistics(generator);
+
 	// Close opened FIFOs and files
 	generator_close_filedes(generator);
+
+	// Delte FIFOs
+	unlink(REJECTED_FIFO_PATH);
+	unlink(REQUESTS_FIFO_PATH);
 
 	// Delete dinamically allocated memory
 	delete_generator_t(generator);
@@ -100,7 +110,10 @@ void * requests_generator(void * arg)
 	for (i = 0; get_num_requests() < gen->MAX_REQUESTS; ++i) {
 
 		Request * new_req = new_request();
+
+		pthread_mutex_lock( &request_mut );
 		generator_log_request(gen, new_req);
+		pthread_mutex_unlock( &request_mut );
 
 		// Write to fifo
 		write(gen->REQUESTS_FIFO, new_req, request_get_sizeof());
@@ -110,7 +123,7 @@ void * requests_generator(void * arg)
 		delete_request(new_req);
 
 		// Check for congruency
-		if (i != get_num_requests()) {
+		if (i != (get_num_requests() - 1)) {
 			printf("ERROR in requests_generator loop!\n");
 			printf("i: %d ; num_requests: %d", i, get_num_requests());
 			exit(1);
@@ -133,18 +146,40 @@ void * rejected_listener(void * arg)
 	generator_t * gen = (generator_t *) arg;
 
 	Request * tmp_request = malloc(SIZEOF_REQUEST);
-	while ( SIZEOF_REQUEST == read(gen->REJECTED_FIFO, tmp_request, SIZEOF_REQUEST) ) {
+	int bytes_read;
+
+	int requests_processed = 0;
+
+	while ( (bytes_read = read(gen->REJECTED_FIFO, tmp_request, SIZEOF_REQUEST)) > 0 ) {
+		if (1 == bytes_read) {
+			requests_processed++;
+			continue;
+		} else if (SIZEOF_REQUEST != bytes_read) {
+			printf("ERROR: Listener read %d bytes.", bytes_read);
+			exit(1);
+		}
+
 		request_increment_rejections(tmp_request);
 
+		pthread_mutex_lock( &reject_mut );
 		generator_log_reject(gen, tmp_request);
+		pthread_mutex_unlock( &reject_mut );
 
 		if (request_get_num_rejections(tmp_request) < MAX_REJECTIONS)
 			write(gen->REQUESTS_FIFO, tmp_request, SIZEOF_REQUEST);
-		else
+		else {
+			pthread_mutex_lock( &discard_mut );
 			generator_log_discard(gen, tmp_request);
+			pthread_mutex_unlock( &discard_mut );
+			requests_processed++;
+		}
+
+		// Check if all requests were processed
+		if (requests_processed == gen->MAX_REQUESTS)
+			break;
 	}
 
-	delete_request(tmp_request);
+	free(tmp_request);
 
 	pthread_exit(0);
 }

@@ -160,7 +160,7 @@ void * mainThread(void * arg){
 		// Check if sauna is empty
 		int num = 0;
 		sem_getvalue(&places_sem, &num);
-		printf("%d\n",num);
+		
 		if(num == MAX_SITS)
 			gender = '*';
 
@@ -203,14 +203,14 @@ void print_register(Request* req, const char * msg){
 
 	unsigned long long time_elapsed = get_current_time() - time_init;
 
-	dprintf(out_fd, "%4llu - %4d - %4lu - %4d: %c - %4d - %s\n",
-		time_elapsed,				/* current time instance in miliseconds */
-		pid,						/* process pid */
-		pthread_self(),		/* thread tid */
-		request_get_serial_no(req),	/* request's serial number */
-		request_get_gender(req),	/* request's gender */
-		request_get_duration(req),	/* request's duration */
-		msg);						/* message identifier */
+	dprintf(out_fd, "%4llu - %4d - %10lu - %4d: %c - %4d - %s\n",
+		time_elapsed,								/* current time instance in miliseconds */
+		pid,										/* process pid */
+		(long unsigned) pthread_self(),				/* thread tid */
+		request_get_serial_no(req),					/* request's serial number */
+		request_get_gender(req),					/* request's gender */
+		request_get_duration(req),					/* request's duration */
+		msg);										/* message identifier */
 
 	pthread_mutex_unlock( &logs_mut );
 }

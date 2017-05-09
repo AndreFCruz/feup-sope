@@ -18,6 +18,8 @@ extern const char * REQUESTS_FIFO_PATH;
 extern const char * REJECTED_FIFO_PATH;
 extern const char * LOGS_FILE_PATH;
 
+extern const unsigned char SIGNAL_CHAR;
+
 // Returns the current time in miliseconds (since 1970, 1st January)
 unsigned long long get_current_time();
 

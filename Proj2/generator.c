@@ -12,9 +12,13 @@
 #include "Request.h"
 #include "utils.h"
 
+#ifndef DEBUG
+#define DEBUG
+#endif
+
 #define MAX_REJECTIONS		3
 
-#define MIN_REQUESTS_GAP	5
+#define MIN_REQUESTS_GAP	50
 #define MILI_TO_MICRO		1000
 
 // NOTE: Time units are in miliseconds
@@ -71,9 +75,17 @@ int main(int argc, char * argv[]) {
 		exit(1);
 	}
 
+#ifdef DEBUG
+	printf("gen.main: created threads, waiting for joins\n");
+#endif
+
 	// Join with threads
 	pthread_join(threads[0], NULL);
 	pthread_join(threads[1], NULL);
+
+#ifdef DEBUG
+	printf("gen.main: joined with threads, printing statistics\n");
+#endif
 
 	// Print execution statistics
 	generator_print_statistics(generator);
@@ -104,6 +116,10 @@ void wait_for_next_request() {
  */
 void * requests_generator(void * arg)
 {
+#ifdef DEBUG
+	printf("gen.generator: starting\n");
+#endif
+
 	generator_t * gen = (generator_t *) arg;
 
 	int i;
@@ -130,6 +146,10 @@ void * requests_generator(void * arg)
 		}
 	}
 
+#ifdef DEBUG
+	printf("gen.generator: exiting\n");
+#endif
+
 	pthread_exit(0);
 }
 
@@ -141,6 +161,10 @@ void * requests_generator(void * arg)
  */ 
 void * rejected_listener(void * arg)
 {
+#ifdef DEBUG
+	printf("gen.listener: starting\n");
+#endif
+
 	// Read from REJECTED_FIFO -- HANG while nothing to be read
 	ssize_t SIZEOF_REQUEST = request_get_sizeof();
 	generator_t * gen = (generator_t *) arg;
@@ -150,10 +174,20 @@ void * rejected_listener(void * arg)
 
 	int requests_processed = 0;
 
+#ifdef DEBUG
+	printf("gen.listener: starting to read\n");
+#endif
+
 	while ( (bytes_read = read(gen->REJECTED_FIFO, tmp_request, SIZEOF_REQUEST)) > 0 ) {
-		if (1 == bytes_read) {
+		if (sizeof(char) == bytes_read) {
+
+#ifdef DEBUG
+	printf("gen.listener: request processed!\n");
+#endif
 			requests_processed++;
-			continue;
+			if (requests_processed == gen->MAX_REQUESTS)
+				break;
+
 		} else if (SIZEOF_REQUEST != bytes_read) {
 			printf("ERROR: Listener read %d bytes.", bytes_read);
 			exit(1);
@@ -168,11 +202,19 @@ void * rejected_listener(void * arg)
 		if (request_get_num_rejections(tmp_request) < MAX_REJECTIONS)
 			write(gen->REQUESTS_FIFO, tmp_request, SIZEOF_REQUEST);
 		else {
+
+#ifdef DEBUG
+	printf("gen.listener: request discarded!\n");
+#endif
 			pthread_mutex_lock( &discard_mut );
 			generator_log_discard(gen, tmp_request);
 			pthread_mutex_unlock( &discard_mut );
 			requests_processed++;
 		}
+
+#ifdef DEBUG
+	printf("gen.listener: requests_processed %d / %d\n", requests_processed, gen->MAX_REQUESTS);
+#endif
 
 		// Check if all requests were processed
 		if (requests_processed == gen->MAX_REQUESTS)
@@ -180,6 +222,10 @@ void * rejected_listener(void * arg)
 	}
 
 	free(tmp_request);
+
+#ifdef DEBUG
+	printf("gen.listener: exiting\n");
+#endif
 
 	pthread_exit(0);
 }

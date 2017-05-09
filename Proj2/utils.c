@@ -3,11 +3,11 @@
 
 #include <stdio.h>
 
-
-
 const char * REQUESTS_FIFO_PATH = "/tmp/entrada";
 const char * REJECTED_FIFO_PATH = "/tmp/rejeitados";
 const char * LOGS_FILE_PATH = "/tmp/ger.";
+
+const unsigned char SIGNAL_CHAR = 0x0000;
 
 unsigned long long get_current_time() {
 	struct timeval t;

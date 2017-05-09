@@ -13,6 +13,11 @@
 #include <pthread.h>
 #include <sys/times.h>
 
+
+#ifndef DEBUG
+#define DEBUG
+#endif
+
 #define SHARED 0
 #define MAX_THREADS 1000
 
@@ -99,6 +104,10 @@ int main(int argc, char** argv){
 }
 
 void * request_handler(void *arg){
+#ifdef DEBUG
+	printf("bal.handler: starting\n");
+#endif
+
 	Request * req = (Request *) arg;
 
 	pthread_mutex_lock( &served_mut );
@@ -111,6 +120,10 @@ void * request_handler(void *arg){
 
 	// Signal an empty seat
 	sem_post(&places_sem);
+
+#ifdef DEBUG
+	printf("bal.handler: exiting\n");
+#endif
 
 	pthread_exit(req);
 }
@@ -149,6 +162,10 @@ void fileHandler(){
 }
 
 void * mainThread(void * arg){
+#ifdef DEBUG
+	printf("bal.mainThread: starting\n");
+#endif
+
 	const ssize_t SIZEOF_REQUEST = request_get_sizeof();
 	
 	char gender = '*';
@@ -159,13 +176,24 @@ void * mainThread(void * arg){
 
 	while (read(in_fifo, req, SIZEOF_REQUEST) > 0)
 	{
+
+#ifdef DEBUG
+	printf("bal.mainThread: while-1\n");
+#endif
+
 		// Check if sauna has empty seats
 		sem_wait(&places_sem);
 
+#ifdef DEBUG
+	printf("bal.mainThread: while-2\n");
+#endif
 		// Check if sauna is empty
 		int num = 0;
 		sem_getvalue(&places_sem, &num);
 
+#ifdef DEBUG
+	printf("bal.mainThread: while-3\n");
+#endif
 		if(num == MAX_SITS)
 			gender = '*';
 
@@ -173,14 +201,22 @@ void * mainThread(void * arg){
 		print_register(req, MSG_RECEIVED);
 		received[((size_t) request_get_gender(req)) % 2]++;
 
+#ifdef DEBUG
+	printf("bal.mainThread: while-4\n");
+#endif
+
 		if (gender == '*')
 			gender = request_get_gender(req);
 
 		if (gender == request_get_gender(req)) { // Accepted
-			write (out_fifo, 0, 1); // Signal request accepted
+			write (out_fifo, &SIGNAL_CHAR, sizeof(char)); // Signal request accepted
 
 			Request * tmp_req = malloc(SIZEOF_REQUEST);
 			memcpy(tmp_req, req, SIZEOF_REQUEST);
+
+#ifdef DEBUG
+	printf("bal.mainThread: while-ACCEPT\n");
+#endif
 
 			pthread_create(&threads[i++], NULL, request_handler, (void *) tmp_req);
 		} else { // Rejected
@@ -188,18 +224,30 @@ void * mainThread(void * arg){
 			print_register(req, MSG_REJECTED);
 			write(out_fifo, req, SIZEOF_REQUEST);
 			sem_post(&places_sem);
+
+#ifdef DEBUG
+	printf("bal.mainThread: while-REJECT\n");
+#endif
 		}
 	}
 
+#ifdef DEBUG
+	printf("bal.mainThread: joining with handler threads\n");
+#endif
+
 	int j; // Join with all created threads
 	for(j = 0; j < i; j++){
-		Request ** ptr = NULL;
-		pthread_join(threads[j], (void **) ptr);
+		Request * ptr = NULL;
+		pthread_join(threads[j], (void *) ptr);
 
-		free(*ptr); // free previously allocated memory
+		free(ptr); // free previously allocated memory
 	}
 
 	free(req);
+
+#ifdef DEBUG
+	printf("bal.mainThread: exiting\n");
+#endif
 
 	return NULL;
 }
@@ -209,14 +257,14 @@ void print_register(Request* req, const char * msg){
 
 	unsigned long long time_elapsed = get_current_time() - time_init;
 
-	dprintf(out_fd, "%4llu - %4d - %10lu - %4d: %c - %4d - %s\n",
-		time_elapsed,								/* current time instance in miliseconds */
-		pid,										/* process pid */
-		(long unsigned) pthread_self(),				/* thread tid */
-		request_get_serial_no(req),					/* request's serial number */
-		request_get_gender(req),					/* request's gender */
-		request_get_duration(req),					/* request's duration */
-		msg);										/* message identifier */
+	dprintf(out_fd, "%4llu - %4d - %#08X - %4d: %c - %4d - %s\n",
+		time_elapsed,				/* current time instance in miliseconds */
+		pid,						/* process pid */
+		pthread_self(),				/* thread tid */
+		request_get_serial_no(req),	/* request's serial number */
+		request_get_gender(req),	/* request's gender */
+		request_get_duration(req),	/* request's duration */
+		msg);						/* message identifier */
 
 	pthread_mutex_unlock( &logs_mut );
 }

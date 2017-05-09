@@ -99,8 +99,6 @@ int main(int argc, char** argv){
 }
 
 void * request_handler(void *arg){
-	// Check if sauna has empty seats
-	sem_wait(&places_sem);
 	Request * req = (Request *) arg;
 
 	pthread_mutex_lock( &served_mut );
@@ -141,9 +139,8 @@ void fileHandler(){
 		exit(4);
 	}
 
-	pid=(int) getpid();
 	char filename[MAX_FILENAME_LEN];
-	snprintf(filename, MAX_FILENAME_LEN, "/tmp/bal.%d", pid);
+	snprintf(filename, MAX_FILENAME_LEN, "/tmp/bal.%d", (int) getpid());
 
 	if((out_fd=open(filename, O_RDWR|O_CREAT, FILE_PERMISSIONS)) == -1) {
 		perror("Can't open LOGS FILE");
@@ -162,10 +159,13 @@ void * mainThread(void * arg){
 
 	while (read(in_fifo, req, SIZEOF_REQUEST) > 0)
 	{
+		// Check if sauna has empty seats
+		sem_wait(&places_sem);
+
 		// Check if sauna is empty
 		int num = 0;
 		sem_getvalue(&places_sem, &num);
-		
+
 		if(num == MAX_SITS)
 			gender = '*';
 
@@ -187,15 +187,16 @@ void * mainThread(void * arg){
 			rejected[((size_t) request_get_gender(req)) % 2]++;
 			print_register(req, MSG_REJECTED);
 			write(out_fifo, req, SIZEOF_REQUEST);
+			sem_post(&places_sem);
 		}
 	}
 
 	int j; // Join with all created threads
 	for(j = 0; j < i; j++){
 		Request ** ptr = NULL;
-		pthread_join(threads[j], NULL);
+		pthread_join(threads[j], (void **) ptr);
 
-		free(ptr); // free previously allocated memory
+		free(*ptr); // free previously allocated memory
 	}
 
 	free(req);

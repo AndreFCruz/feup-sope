@@ -81,7 +81,7 @@ int main(int argc, char * argv[]) {
 	// Close opened FIFOs and files
 	generator_close_filedes(generator);
 
-	// Delte FIFOs
+	// Delete FIFOs
 	unlink(REJECTED_FIFO_PATH);
 	unlink(REQUESTS_FIFO_PATH);
 

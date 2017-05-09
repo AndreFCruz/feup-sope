@@ -94,6 +94,8 @@ int main(int argc, char** argv){
 }
 
 void * request_handler(void *arg){
+	// Check if sauna has empty seats
+	sem_wait(&places_sem);
 	Request * req = (Request *) arg;
 
 	pthread_mutex_lock( &served_mut );
@@ -134,8 +136,9 @@ void fileHandler(){
 		exit(4);
 	}
 
+	pid=(int) getpid();
 	char filename[MAX_FILENAME_LEN];
-	snprintf(filename, MAX_FILENAME_LEN, "/tmp/bal.%d", (int) getpid());
+	snprintf(filename, MAX_FILENAME_LEN, "/tmp/bal.%d", pid);
 
 	if((out_fd=open(filename, O_RDWR|O_CREAT, FILE_PERMISSIONS)) == -1) {
 		perror("Can't open LOGS FILE");
@@ -154,12 +157,10 @@ void * mainThread(void * arg){
 
 	while (read(in_fifo, req, SIZEOF_REQUEST) > 0)
 	{
-		// Check if sauna has empty seats
-		sem_wait(&places_sem);
-
 		// Check if sauna is empty
 		int num = 0;
 		sem_getvalue(&places_sem, &num);
+		printf("%d\n",num);
 		if(num == MAX_SITS)
 			gender = '*';
 
@@ -187,9 +188,9 @@ void * mainThread(void * arg){
 	int j; // Join with all created threads
 	for(j = 0; j < i; j++){
 		Request ** ptr = NULL;
-		pthread_join(threads[j], (void **) ptr);
+		pthread_join(threads[j], NULL);
 
-		free(*ptr); // free previously allocated memory
+		free(ptr); // free previously allocated memory
 	}
 
 	free(req);
@@ -202,10 +203,10 @@ void print_register(Request* req, const char * msg){
 
 	unsigned long long time_elapsed = get_current_time() - time_init;
 
-	dprintf(out_fd, "%4llu - %4d - %4d - %4d: %c - %4d - %s\n",
+	dprintf(out_fd, "%4llu - %4d - %4lu - %4d: %c - %4d - %s\n",
 		time_elapsed,				/* current time instance in miliseconds */
 		pid,						/* process pid */
-		(int) pthread_self(),		/* thread tid */
+		pthread_self(),		/* thread tid */
 		request_get_serial_no(req),	/* request's serial number */
 		request_get_gender(req),	/* request's gender */
 		request_get_duration(req),	/* request's duration */

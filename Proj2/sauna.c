@@ -39,6 +39,11 @@ pthread_mutex_t logs_mut = PTHREAD_MUTEX_INITIALIZER;
 void print_register(Request* req, const char* tip);
 
 /**
+* Gets actual clock miliseconds
+*/
+void get_clock(double *time);
+
+/**
 * Simulates the steam room utilization
 */
 void * request_handler(void *arg);
@@ -88,8 +93,6 @@ int main(int argc, char** argv){
 	// TODO Check termination clauses
 	close(in_fifo);
 	close(out_fifo);
-	sem_destroy(&out_sem);
-	sem_destroy(&places_sem);
 	unlink(REJECTED_FIFO_PATH);
 
 	exit(0);

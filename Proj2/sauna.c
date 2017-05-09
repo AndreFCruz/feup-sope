@@ -39,11 +39,6 @@ pthread_mutex_t logs_mut = PTHREAD_MUTEX_INITIALIZER;
 void print_register(Request* req, const char* tip);
 
 /**
-* Gets actual clock miliseconds
-*/
-void get_clock(double *time);
-
-/**
 * Simulates the steam room utilization
 */
 void * request_handler(void *arg);

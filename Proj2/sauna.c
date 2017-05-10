@@ -236,7 +236,7 @@ void * mainThread(void * arg){
 #endif
 
 	int j; // Join with all created threads
-	for(j = 0; j < i; j++){
+	for(j = 0; j < i; j++) {
 		Request * ptr = NULL;
 		pthread_join(threads[j], (void *) ptr);
 
@@ -270,17 +270,17 @@ void print_register(Request* req, const char * msg){
 }
 
 void print_final_stats() {
-	printf("Number of received requests:\n");
+	printf("\nNumber of received requests:\n");
 	printf("Male - %d\n", received[1]);
 	printf("Female - %d\n", received[0]);
 	printf("Total - %d\n", received[0]+received[1]);
 	
-	printf("Number of rejected requests:\n");
+	printf("\nNumber of rejected requests:\n");
 	printf("Male - %d\n", rejected[1]);
 	printf("Female - %d\n", rejected[0]);
 	printf("Total - %d\n", rejected[0]+rejected[1]);
 	
-	printf("Number of served requests:\n");
+	printf("\nNumber of served requests:\n");
 	printf("Male - %d\n", served[1]);
 	printf("Female - %d\n", served[0]);
 	printf("Total - %d\n", served[0]+served[1]);

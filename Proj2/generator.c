@@ -187,6 +187,7 @@ void * rejected_listener(void * arg)
 			requests_processed++;
 			if (requests_processed == gen->MAX_REQUESTS)
 				break;
+			continue;
 
 		} else if (SIZEOF_REQUEST != bytes_read) {
 			printf("ERROR: Listener read %d bytes.", bytes_read);

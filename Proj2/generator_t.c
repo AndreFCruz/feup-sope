@@ -127,10 +127,10 @@ void log_request_stats(generator_t * gen, Request * req, const char * msg) {
  * Prints overall statistical information about generator execution
  */
 void generator_print_statistics(generator_t * gen) {
-	printf("Requests   (M/F): %d/%d\n", gen->male_requests, gen->female_requests);
+	printf("\nRequests   (M/F): %d/%d\n", gen->male_requests, gen->female_requests);
 	printf("Rejections (M/F): %d/%d\n", gen->male_rejections, gen->female_rejections);
 	printf("Discards   (M/F): %d/%d\n", gen->male_discards, gen->female_discards);
-	printf("Current instant: %llu\n", get_current_time() - gen->START_TIME);
+	printf("\nCurrent instant: %llu\n", get_current_time() - gen->START_TIME);
 }
 
 

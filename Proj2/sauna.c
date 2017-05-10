@@ -120,7 +120,7 @@ void * request_handler(void *arg){
 	sem_post(&places_sem);
 
 #ifdef DEBUG
-	printf("bal.handler: exiting\n");
+	printf("bal.handler: exiting %d\n", request_get_serial_no(req));
 #endif
 
 	pthread_exit(req);

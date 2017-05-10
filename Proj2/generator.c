@@ -199,18 +199,18 @@ void * rejected_listener(void * arg)
 		if (request_get_num_rejections(tmp_request) < MAX_REJECTIONS)
 			write(gen->REQUESTS_FIFO, tmp_request, SIZEOF_REQUEST);
 		else {
-
-#ifdef DEBUG
-	printf("gen.listener: request DISCARDED!\n");
-#endif
 			pthread_mutex_lock( &discard_mut );
 			generator_log_discard(gen, tmp_request);
 			pthread_mutex_unlock( &discard_mut );
 			requests_processed++;
+
+#ifdef DEBUG
+			printf("gen.listener: request DISCARDED!\n");
+#endif
 		}
 
 #ifdef DEBUG
-	printf("gen.listener: requests_processed %d / %d\n", requests_processed, gen->MAX_REQUESTS);
+		printf("gen.listener: requests_processed %d / %d\n", requests_processed, gen->MAX_REQUESTS);
 #endif
 
 		// Check if all requests were processed

@@ -174,15 +174,11 @@ void * rejected_listener(void * arg)
 
 	int requests_processed = 0;
 
-#ifdef DEBUG
-	printf("gen.listener: starting to read\n");
-#endif
-
 	while ( (bytes_read = read(gen->REJECTED_FIFO, tmp_request, SIZEOF_REQUEST)) > 0 ) {
 		if (sizeof(char) == bytes_read) {
 
 #ifdef DEBUG
-	printf("gen.listener: request processed!\n");
+	printf("gen.listener: request PROCESSED!\n");
 #endif
 			requests_processed++;
 			if (requests_processed == gen->MAX_REQUESTS)
@@ -205,7 +201,7 @@ void * rejected_listener(void * arg)
 		else {
 
 #ifdef DEBUG
-	printf("gen.listener: request discarded!\n");
+	printf("gen.listener: request DISCARDED!\n");
 #endif
 			pthread_mutex_lock( &discard_mut );
 			generator_log_discard(gen, tmp_request);

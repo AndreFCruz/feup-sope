@@ -95,20 +95,18 @@ int main(int argc, char** argv){
 	print_final_stats();
 
 	// Closing files and deleting created FIFOs
-	// TODO Check termination clauses
 	close(in_fifo);
 	close(out_fifo);
-	unlink(REJECTED_FIFO_PATH);
 
 	exit(0);
 }
 
 void * request_handler(void *arg){
-#ifdef DEBUG
-	printf("bal.handler: starting\n");
-#endif
-
 	Request * req = (Request *) arg;
+
+#ifdef DEBUG
+	printf("bal.handler: starting %d\n", request_get_serial_no(req));
+#endif
 
 	pthread_mutex_lock( &served_mut );
 	served[((size_t) request_get_gender(req)) % 2]++;
@@ -178,32 +176,22 @@ void * mainThread(void * arg){
 	{
 
 #ifdef DEBUG
-	printf("bal.mainThread: while-1\n");
+		printf("bal.mainThread: in while -- ");
 #endif
 
 		// Check if sauna has empty seats
 		sem_wait(&places_sem);
 
-#ifdef DEBUG
-	printf("bal.mainThread: while-2\n");
-#endif
 		// Check if sauna is empty
 		int num = 0;
 		sem_getvalue(&places_sem, &num);
 
-#ifdef DEBUG
-	printf("bal.mainThread: while-3\n");
-#endif
 		if(num == MAX_SITS)
 			gender = '*';
 
 		// Log Request receival
 		print_register(req, MSG_RECEIVED);
 		received[((size_t) request_get_gender(req)) % 2]++;
-
-#ifdef DEBUG
-	printf("bal.mainThread: while-4\n");
-#endif
 
 		if (gender == '*')
 			gender = request_get_gender(req);
@@ -215,7 +203,7 @@ void * mainThread(void * arg){
 			memcpy(tmp_req, req, SIZEOF_REQUEST);
 
 #ifdef DEBUG
-	printf("bal.mainThread: while-ACCEPT\n");
+			printf("ACCEPT\n");
 #endif
 
 			pthread_create(&threads[i++], NULL, request_handler, (void *) tmp_req);
@@ -226,13 +214,13 @@ void * mainThread(void * arg){
 			sem_post(&places_sem);
 
 #ifdef DEBUG
-	printf("bal.mainThread: while-REJECT\n");
+			printf("REJECT\n");
 #endif
 		}
 	}
 
 #ifdef DEBUG
-	printf("bal.mainThread: joining with handler threads\n");
+	printf("bal.mainThread: joining with handler threads and freeing memory\n");
 #endif
 
 	int j; // Join with all created threads

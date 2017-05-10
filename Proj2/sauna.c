@@ -258,20 +258,11 @@ void print_register(Request* req, const char * msg){
 }
 
 void print_final_stats() {
-	printf("\nNumber of received requests:\n");
-	printf("Male - %d\n", received[1]);
-	printf("Female - %d\n", received[0]);
-	printf("Total - %d\n", received[0]+received[1]);
-	
-	printf("\nNumber of rejected requests:\n");
-	printf("Male - %d\n", rejected[1]);
-	printf("Female - %d\n", rejected[0]);
-	printf("Total - %d\n", rejected[0]+rejected[1]);
-	
-	printf("\nNumber of served requests:\n");
-	printf("Male - %d\n", served[1]);
-	printf("Female - %d\n", served[0]);
-	printf("Total - %d\n", served[0]+served[1]);
+
+	printf("\Receptions   (M/F): %d/%d [%d]\n", received[1], received[0], received[1] + received[0]);
+	printf("Rejections (M/F): %d/%d [%d]\n", rejected[1], rejected[0], rejected[0] + rejected[1]);
+	printf("Services   (M/F): %d/%d [%d]\n", served[1], served[0], served[0] + served[1]);
+	printf("\nCurrent instant: %llu\n", get_current_time() - time_init);
 	
 	return;
 }

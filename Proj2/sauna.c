@@ -27,7 +27,6 @@
 
 int out_fifo, in_fifo;
 int out_fd;
-int pid;
 unsigned long long time_init;
 
 int MAX_SITS;
@@ -189,10 +188,14 @@ void * mainThread(void * arg){
 		if (sem_getvalue(&places_sem, &num) != 0)
 			perror("sem_getvalue failed");
 
-		if(num == MAX_SITS) {
-			printf("**RESET SAUNA'S GENDER : ");
+		printf("Sits available in sauna: %d/%d\n", num, MAX_SITS);
 
+		if(num == MAX_SITS) {
 			gender = '*';
+
+#ifdef DEBUG
+			printf("**RESET SAUNA'S GENDER : ");
+#endif
 		}
 
 		// Check if sauna has empty seats
@@ -204,7 +207,10 @@ void * mainThread(void * arg){
 
 		if (gender == '*') {
 			gender = request_get_gender(req);
+
+#ifdef DEBUG
 			printf("%c\n", gender);
+#endif
 		}
 
 		if (gender == request_get_gender(req)) { // Accepted

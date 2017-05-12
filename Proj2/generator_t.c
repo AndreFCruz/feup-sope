@@ -112,8 +112,9 @@ void log_request_stats(generator_t * gen, Request * req, const char * msg) {
 
 	unsigned long long time_elapsed = get_current_time() - gen->START_TIME;
 
-	dprintf(gen->LOGS_FILE, "%4llu - %4d - %4d: %c - %4d - %s\n",
-		time_elapsed,		/* current time instance in miliseconds */
+	dprintf(gen->LOGS_FILE, "%4llu.%02llu - %4d - %4d: %c - %4d - %s\n",
+		(time_elapsed) / MILI_TO_MICRO,	/* current time instant in miliseconds */
+		((time_elapsed) % (MILI_TO_MICRO) + 5) / 10,	/* rounded decimals */
 		getpid(),					/* process pid */
 		request_get_serial_no(req),	/* request's serial number */
 		request_get_gender(req),	/* request's gender */
@@ -127,10 +128,21 @@ void log_request_stats(generator_t * gen, Request * req, const char * msg) {
  * Prints overall statistical information about generator execution
  */
 void generator_print_statistics(generator_t * gen) {
-	printf("\nRequests   (M/F): %d/%d [%d]\n", gen->male_requests, gen->female_requests, gen->male_requests + gen->female_requests);
-	printf("Rejections (M/F): %d/%d [%d]\n", gen->male_rejections, gen->female_rejections, gen->male_rejections + gen->female_rejections);
-	printf("Discards   (M/F): %d/%d [%d]\n", gen->male_discards, gen->female_discards, gen->male_discards + gen->female_discards);
-	printf("\nCurrent instant: %llu\n", get_current_time() - gen->START_TIME);
+	printf("\nRequests   (M/F): %d/%d [%d]\n", gen->male_requests,
+		gen->female_requests, gen->male_requests + gen->female_requests);
+
+	printf("Rejections (M/F): %d/%d [%d]\n",
+		gen->male_rejections, gen->female_rejections,
+		gen->male_rejections + gen->female_rejections);
+
+	printf("Discards   (M/F): %d/%d [%d]\n",
+		gen->male_discards, gen->female_discards,
+		gen->male_discards + gen->female_discards);
+
+	unsigned long long time_elapsed = get_current_time() - gen->START_TIME;
+	printf("\nCurrent  instant: %llu.%02llu\n",
+		(time_elapsed) / MILI_TO_MICRO,
+		((time_elapsed) % (MILI_TO_MICRO) + 5) / 10 );
 }
 
 

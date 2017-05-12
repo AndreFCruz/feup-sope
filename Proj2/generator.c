@@ -12,16 +12,14 @@
 #include "Request.h"
 #include "utils.h"
 
+/*
 #ifndef DEBUG
 #define DEBUG
 #endif
+*/
 
 #define MAX_REJECTIONS		3
 
-#define MIN_REQUESTS_GAP	50
-#define MILI_TO_MICRO		1000
-
-// NOTE: Time units are in miliseconds
 
 // Threads' Functions
 void * requests_generator(void * arg);
@@ -104,7 +102,11 @@ int main(int argc, char * argv[]) {
 }
 
 void wait_for_next_request() {
-	int mlsecs = MIN_REQUESTS_GAP + rand() % get_max_duration();
+	int mlsecs = (get_max_duration() / 2) + rand() % get_max_duration();
+
+#ifdef DEBUG
+	printf("gen: Waited %d\n", mlsecs);
+#endif
 
 	usleep(mlsecs * MILI_TO_MICRO);
 }

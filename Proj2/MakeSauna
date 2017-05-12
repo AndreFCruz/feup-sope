@@ -7,7 +7,7 @@ CC = gcc
 PROG = sauna
 SRCS = sauna.c Request.c utils.c
 
-LDFLAGS=-pthread
+LDFLAGS= -pthread -lpthread
 CFLAGS = -Wall
 
 

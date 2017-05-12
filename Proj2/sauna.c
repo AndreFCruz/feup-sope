@@ -3,20 +3,24 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <sys/types.h>
 #include <unistd.h>
 #include <semaphore.h>
 #include <string.h>
 #include <pthread.h>
 #include <sys/times.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/sem.h>
+#include <sys/stat.h>
 
 
+/*
 #ifndef DEBUG
 #define DEBUG
 #endif
+*/
 
 #define SHARED 0
 #define MAX_THREADS 1000
@@ -184,10 +188,17 @@ void * mainThread(void * arg){
 
 		// Check if sauna is empty
 		int num = 0;
-		sem_getvalue(&places_sem, &num);
+		if (sem_getvalue(&places_sem, &num) != 0)
+			perror("sem_getvalue failed");
 
-		if(num == MAX_SITS)
+		if(num == (MAX_SITS - 1)) {
+
+#ifdef DEBUG
+			printf("\n\n**RESET SAUNA'S GENDER **\n\n");
+#endif
+
 			gender = '*';
+		}
 
 		// Log Request receival
 		print_register(req, MSG_RECEIVED);
@@ -245,8 +256,9 @@ void print_register(Request* req, const char * msg){
 
 	unsigned long long time_elapsed = get_current_time() - time_init;
 
-	dprintf(out_fd, "%4llu - %4d - %#08X - %4d: %c - %4d - %s\n",
-		time_elapsed,				/* current time instance in miliseconds */
+	dprintf(out_fd, "%4llu.%02llu - %4d - %#08X - %4d: %c - %4d - %s\n",
+		(time_elapsed) / MILI_TO_MICRO,	/* current time instant in miliseconds */
+		((time_elapsed) % (MILI_TO_MICRO) + 5) / 10,	/* rounded decimals */
 		pid,						/* process pid */
 		pthread_self(),				/* thread tid */
 		request_get_serial_no(req),	/* request's serial number */
@@ -259,10 +271,10 @@ void print_register(Request* req, const char * msg){
 
 void print_final_stats() {
 
-	printf("\Receptions   (M/F): %d/%d [%d]\n", received[1], received[0], received[1] + received[0]);
+	printf("\nReceptions (M/F): %d/%d [%d]\n", received[1], received[0], received[1] + received[0]);
 	printf("Rejections (M/F): %d/%d [%d]\n", rejected[1], rejected[0], rejected[0] + rejected[1]);
-	printf("Services   (M/F): %d/%d [%d]\n", served[1], served[0], served[0] + served[1]);
-	printf("\nCurrent instant: %llu\n", get_current_time() - time_init);
+	printf("Served     (M/F): %d/%d [%d]\n", served[1], served[0], served[0] + served[1]);
+	printf("\nCurrent  instant: %llu\n", get_current_time() - time_init);
 	
 	return;
 }

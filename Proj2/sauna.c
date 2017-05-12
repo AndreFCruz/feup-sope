@@ -85,7 +85,8 @@ int main(int argc, char** argv){
 	time_init=get_current_time();
 
 	//Semaphore intializer
-	sem_init(&places_sem, SHARED, MAX_SITS);
+	if (sem_init(&places_sem, SHARED, MAX_SITS) != 0)
+		perror("sem_init failed");
 
 	fileHandler();
 
@@ -183,22 +184,19 @@ void * mainThread(void * arg){
 		printf("bal.mainThread: in while -- ");
 #endif
 
-		// Check if sauna has empty seats
-		sem_wait(&places_sem);
-
 		// Check if sauna is empty
 		int num = 0;
 		if (sem_getvalue(&places_sem, &num) != 0)
 			perror("sem_getvalue failed");
 
-		if(num == (MAX_SITS - 1)) {
-
-#ifdef DEBUG
+		if(num == MAX_SITS) {
 			printf("\n\n**RESET SAUNA'S GENDER **\n\n");
-#endif
 
 			gender = '*';
 		}
+
+		// Check if sauna has empty seats
+		sem_wait(&places_sem);
 
 		// Log Request receival
 		print_register(req, MSG_RECEIVED);

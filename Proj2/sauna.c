@@ -23,7 +23,6 @@
 */
 
 #define SHARED 0
-#define MAX_THREADS 1000
 
 int out_fifo, in_fifo;
 int out_fd;
@@ -174,7 +173,7 @@ void * mainThread(void * arg){
 
 	int i = 0;
 	Request * req = malloc(SIZEOF_REQUEST);
-	pthread_t threads[MAX_THREADS];
+	pthread_t threads[MAX_SITS];
 
 	while (read(in_fifo, req, SIZEOF_REQUEST) > 0)
 	{
@@ -188,7 +187,9 @@ void * mainThread(void * arg){
 		if (sem_getvalue(&places_sem, &num) != 0)
 			perror("sem_getvalue failed");
 
+#ifdef DEBUG
 		printf("Sits available in sauna: %d/%d\n", num, MAX_SITS);
+#endif
 
 		if(num == MAX_SITS) {
 			gender = '*';

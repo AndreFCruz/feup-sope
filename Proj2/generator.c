@@ -102,7 +102,7 @@ int main(int argc, char * argv[]) {
 }
 
 void wait_for_next_request() {
-	int mlsecs = (get_max_duration() / 4) + rand() % get_max_duration();
+	int mlsecs = rand() % get_max_duration();
 
 #ifdef DEBUG
 	printf("gen: Waited %d\n", mlsecs);

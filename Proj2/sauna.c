@@ -190,7 +190,7 @@ void * mainThread(void * arg){
 			perror("sem_getvalue failed");
 
 		if(num == MAX_SITS) {
-			printf("\n\n**RESET SAUNA'S GENDER **\n\n");
+			printf("**RESET SAUNA'S GENDER : ");
 
 			gender = '*';
 		}
@@ -202,8 +202,10 @@ void * mainThread(void * arg){
 		print_register(req, MSG_RECEIVED);
 		received[((size_t) request_get_gender(req)) % 2]++;
 
-		if (gender == '*')
+		if (gender == '*') {
 			gender = request_get_gender(req);
+			printf("%c\n", gender);
+		}
 
 		if (gender == request_get_gender(req)) { // Accepted
 			write (out_fifo, &SIGNAL_CHAR, sizeof(char)); // Signal request accepted

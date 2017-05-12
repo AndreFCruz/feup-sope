@@ -173,7 +173,7 @@ void * mainThread(void * arg){
 
 	int i = 0;
 	Request * req = malloc(SIZEOF_REQUEST);
-	pthread_t threads[MAX_SITS];
+	pthread_t * threads = malloc(MAX_SITS * sizeof(pthread_t));
 
 	while (read(in_fifo, req, SIZEOF_REQUEST) > 0)
 	{
@@ -250,6 +250,7 @@ void * mainThread(void * arg){
 	}
 
 	free(req);
+	free(threads);
 
 #ifdef DEBUG
 	printf("bal.mainThread: exiting\n");

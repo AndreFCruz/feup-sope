@@ -114,7 +114,7 @@ void log_request_stats(generator_t * gen, Request * req, const char * msg) {
 
 	dprintf(gen->LOGS_FILE, "%4llu.%02llu - %4d - %4d: %c - %4d - %s\n",
 		(time_elapsed) / MILI_TO_MICRO,	/* current time instant in miliseconds */
-		((time_elapsed) % (MILI_TO_MICRO) + 5) / 10,	/* rounded decimals */
+		((time_elapsed + 5) % (MILI_TO_MICRO)) / 10,	/* rounded decimals */
 		getpid(),					/* process pid */
 		request_get_serial_no(req),	/* request's serial number */
 		request_get_gender(req),	/* request's gender */
@@ -142,7 +142,7 @@ void generator_print_statistics(generator_t * gen) {
 	unsigned long long time_elapsed = get_current_time() - gen->START_TIME;
 	printf("\nCurrent  instant: %llu.%02llu\n",
 		(time_elapsed) / MILI_TO_MICRO,
-		((time_elapsed) % (MILI_TO_MICRO) + 5) / 10 );
+		((time_elapsed + 5) % (MILI_TO_MICRO)) / 10 );
 }
 
 

@@ -258,8 +258,8 @@ void print_register(Request* req, const char * msg){
 
 	dprintf(out_fd, "%4llu.%02llu - %4d - %#08X - %4d: %c - %4d - %s\n",
 		(time_elapsed) / MILI_TO_MICRO,	/* current time instant in miliseconds */
-		((time_elapsed) % (MILI_TO_MICRO) + 5) / 10,	/* rounded decimals */
-		pid,						/* process pid */
+		((time_elapsed + 5) % (MILI_TO_MICRO)) / 10,	/* rounded decimals */
+		getpid(),						/* process pid */
 		pthread_self(),				/* thread tid */
 		request_get_serial_no(req),	/* request's serial number */
 		request_get_gender(req),	/* request's gender */
@@ -274,7 +274,10 @@ void print_final_stats() {
 	printf("\nReceptions (M/F): %d/%d [%d]\n", received[1], received[0], received[1] + received[0]);
 	printf("Rejections (M/F): %d/%d [%d]\n", rejected[1], rejected[0], rejected[0] + rejected[1]);
 	printf("Served     (M/F): %d/%d [%d]\n", served[1], served[0], served[0] + served[1]);
-	printf("\nCurrent  instant: %llu\n", get_current_time() - time_init);
-	
+
+	unsigned long long time_elapsed = get_current_time() - time_init;
+	printf("\nCurrent  instant: %llu.%02llu\n",
+		(time_elapsed) / MILI_TO_MICRO,
+		((time_elapsed + 5) % (MILI_TO_MICRO)) / 10 );
 	return;
 }

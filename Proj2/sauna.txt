@@ -1,0 +1,23 @@
+Sauna:
+
+// COMANDO DE INVOCAÇÃO //
+
+./sauna <n. lugares>
+
+// //
+
+// INFORMAÇÃO DE SAÍDA PADRÃO //
+
+Receptions (M/F): <n. pedidos masculinos recebidos> / <n. pedidos femininos recebidos> [<n. pedidos recebidos>]
+Rejections (M/F): <n. pedidos masculinos rejeitados> / <n. pedidos femininos rejeitados> [<n. pedidos rejeitados>]
+Served     (M/F): <n. pedidos masculinos servidos> / <n. pedidos femininos servidos> [<n. pedidos servidos>]
+
+Current  instant: <instante de tempo desde o início da execução>
+
+// //
+
+// REGISTOS //
+
+inst – pid – tid – p: g – dur – tip
+
+// //

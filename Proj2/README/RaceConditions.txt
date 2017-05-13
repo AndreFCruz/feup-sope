@@ -1,0 +1,39 @@
+// IDENTIFICAÇÃO DOS ELEMENTOS DO GRUPO DE ALUNOS AUTORES
+
+André Miguel Ferreira da Cruz		201503776
+Bruno Miguel de Sousa Pinto		201502960
+Rui Emanuel Cabral de Almeida Quaresma	201503005
+
+// //
+
+// EXPLICAÇÃO SUSCINTA DE COMO FORAM EVITADAS NO CÓDIGO DESENVOLVIDO AS SITUAÇÕES DE COMPETIÇÃO (RACE CONDITIONS) NO ACESSO A ELEMENTOS PARTILHADOS
+
+** SAUNA **
+
+O semáforo ‘places_sem’ é usado para bloquear o thread principal da sauna quando esta não tem lugares livres, não recorrendo assim a “busy waiting” e consequentemente não consumindo recursos desnecessariamente.
+O semáforo é inicializado com o número de lugares na sauna, e quando o thread da sauna aceita um pedido faz wait “sem_wait(&places_sem)” e, quando este estiver tratado (após a duração especificada pelo pedido), o novo thread que tratou do pedido fará “sem_post(&places_sem)”, sinalizando que um lugar ficou livre.
+
+O mutex 'logs_mut' impede que haja dois threads a escrever no ficheiro de registos (bal.pid) simultaneamente (é feito o lock do mutex antes de escrever no ficheiro, e o unlock imediatamente após);
+O mutex 'served_mut' impede que a variável global ‘served’ seja acedida/alterada por dois threads simultaneamente (é feito o lock do mutex antes de aceder à variável, e o unlock imediatamente após);
+
+Relativamente às restantes variáveis não é necessário a utilização de mutexes/semáforos pois não podem ser acedidas por mais de um thread simultaneamente.
+
+
+
+** GERADOR **
+No ficheiro generator_t.c:
+o mutex ‘mut_logs’, membro da struct generator_t, impede que haja dois threads a escrever no ficheiro de registos (ger.pid) simultaneamente (é feito o lock do mutex antes de escrever no ficheiro, e o unlock imediatamente após);
+
+No ficheiro generator.c:
+- O mutex 'request_mut' impede que as variáveis ‘male_requests’ e ‘female_requests’ da struct generator_t sejam acedidas/alteradas por dois threads simultaneamente, pois a struct em causa contem o estado de execução do gerador e pode ser acedida por vários threads (é feito o lock do mutex antes de aceder à variável, e o unlock imediatamente após);
+- O mutex 'reject_mut' impede que as variáveis ‘male_rejections’ e ‘female_rejections’ da struct generator_t sejam acedidas/alteradas por dois threads simultaneamente, pois a struct em causa contem o estado de execução do gerador e pode ser acedida por vários threads (é feito o lock do mutex antes de aceder à variável, e o unlock imediatamente após);
+- O mutex 'discard_mut' impede que as variáveis ‘male_discards’ e ‘female_discards’ da struct generator_t sejam acedidas/alteradas por dois threads simultaneamente, pois a struct em causa contem o estado de execução do gerador e pode ser acedida por vários threads (é feito o lock do mutex antes de aceder à variável, e o unlock imediatamente após);
+
+
+Relativamente às restantes variáveis não é necessário a utilização de mutexes/semáforos pois não podem ser acedidas por mais de um thread simultaneamente.
+
+
+** Quanto à escrita nos FIFOs, apesar de ser feita em threads diferentes, não é necessário sincronizar/proteger o acesso a estes, pois o sistema operativo garante que a escrita é feita atomicamente através da chamada “write”, desde que o tamanho dos dados escritos seja menor que o buffer-size (4KB em Ubuntu, 16 KB em MacOS).
+
+****
+

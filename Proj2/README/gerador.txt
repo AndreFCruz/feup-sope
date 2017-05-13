@@ -1,0 +1,30 @@
+*************
+** Gerador **
+*************
+
+// MAKEFILE
+
+make -f MakeGenerator
+
+
+// COMANDO DE INVOCAÇÃO //
+
+./generator <n. pedidos> <max. utilização>
+
+
+// INFORMAÇÃO DE SAÍDA PADRÃO //
+
+Receptions (M/F): <n. pedidos masculinos efetuados> / <n. pedidos femininos efetuados> [<n. pedidos efetuados>]
+Rejections (M/F): <n. pedidos masculinos rejeitados> / <n. pedidos femininos rejeitados> [<n. pedidos rejeitados>]
+Discards   (M/F): <n. pedidos masculinos descartados> / <n. pedidos femininos descartados> [<n. pedidos descartados>]
+
+Current  instant: <instante de tempo desde o início da execução>
+
+
+// REGISTOS no ficheiro ger.<pid> //
+
+inst – pid – p: g – dur – tip
+
+(Especificações no enunciado do trabalho)
+
+// //

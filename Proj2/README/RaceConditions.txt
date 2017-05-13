@@ -26,14 +26,13 @@ o mutex ‘mut_logs’, membro da struct generator_t, impede que haja dois threa
 
 No ficheiro generator.c:
 - O mutex 'request_mut' impede que as variáveis ‘male_requests’ e ‘female_requests’ da struct generator_t sejam acedidas/alteradas por dois threads simultaneamente, pois a struct em causa contem o estado de execução do gerador e pode ser acedida por vários threads (é feito o lock do mutex antes de aceder à variável, e o unlock imediatamente após);
-- O mutex 'reject_mut' impede que as variáveis ‘male_rejections’ e ‘female_rejections’ da struct generator_t sejam acedidas/alteradas por dois threads simultaneamente, pois a struct em causa contem o estado de execução do gerador e pode ser acedida por vários threads (é feito o lock do mutex antes de aceder à variável, e o unlock imediatamente após);
-- O mutex 'discard_mut' impede que as variáveis ‘male_discards’ e ‘female_discards’ da struct generator_t sejam acedidas/alteradas por dois threads simultaneamente, pois a struct em causa contem o estado de execução do gerador e pode ser acedida por vários threads (é feito o lock do mutex antes de aceder à variável, e o unlock imediatamente após);
-
+- O mutex 'reject_mut' impede que as variáveis ‘male_rejections’ e ‘female_rejections’ da struct generator_t sejam acedidas/alteradas por dois threads simultaneamente, pois a struct em causa pode ser acedida por vários threads (é feito o lock do mutex antes de aceder à variável, e o unlock imediatamente após);
+- O mutex 'discard_mut' impede que as variáveis ‘male_discards’ e ‘female_discards’ da struct generator_t sejam acedidas/alteradas por dois threads simultaneamente, pois a struct em causa pode ser acedida por vários threads (é feito o lock do mutex antes de aceder à variável, e o unlock imediatamente após);
 
 Relativamente às restantes variáveis não é necessário a utilização de mutexes/semáforos pois não podem ser acedidas por mais de um thread simultaneamente.
 
 
-** Quanto à escrita nos FIFOs, apesar de ser feita em threads diferentes, não é necessário sincronizar/proteger o acesso a estes, pois o sistema operativo garante que a escrita é feita atomicamente através da chamada “write”, desde que o tamanho dos dados escritos seja menor que o buffer-size (4KB em Ubuntu, 16 KB em MacOS).
+** Quanto à escrita nos FIFOs, tal como lecionado nas aulas teóricas, apesar de ser feita em threads diferentes não é necessário sincronizar/proteger o acesso a estes, pois o sistema operativo garante que a escrita é feita atomicamente através da chamada “write”, desde que o tamanho dos dados escritos seja menor que o buffer-size (4KB em Linux, 16 KB em MacOS).
 
 ****
 

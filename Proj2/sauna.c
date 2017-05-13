@@ -268,7 +268,7 @@ void print_register(Request* req, const char * msg){
 		(time_elapsed) / MILI_TO_MICRO,	/* current time instant in miliseconds */
 		((time_elapsed + 5) % (MILI_TO_MICRO)) / 10,	/* rounded decimals */
 		getpid(),						/* process pid */
-		pthread_self(),				/* thread tid */
+		(unsigned int) pthread_self(),				/* thread tid */
 		request_get_serial_no(req),	/* request's serial number */
 		request_get_gender(req),	/* request's gender */
 		request_get_duration(req),	/* request's duration */

@@ -1,22 +1,4 @@
-Sauna:
-
-// COMANDO DE INVOCAÇÃO //
-
-./sauna 5
-
-// //
-
-// INFORMAÇÃO DE SAÍDA PADRÃO //
-
-Receptions (M/F): 16/28 [44]
-Rejections (M/F): 8/12 [20]
-Served     (M/F): 8/16 [24]
-
-Current  instant: 11882.25
-
-// //
-
-// REGISTOS //
+// EXEMPLO DO FICHEIRO DE LOGS bal.pid //
 
 11712.12 - 2417 - 0XB7523B40 -    0: F -    7 - RECEBIDO
 11720.50 - 2417 - 0XB6BFFB40 -    0: F -    7 - SERVIDO
